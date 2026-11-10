@@ -93,13 +93,26 @@ describe('runIngestPipeline', () => {
       seedRow({ byteSize: bytes.byteLength }),
     ]);
     const vectorStore = fakeVectorStore();
+    const steps: string[] = [];
+    const step = {
+      run: async <T>(id: string, fn: () => Promise<T>) => {
+        steps.push(id);
+        return fn();
+      },
+    };
     const result = await runIngestPipeline({
       repo,
       objectStore: fakeObjectStore({ [`kb/${DOC_ID}/vpn.txt`]: bytes }),
       embeddings: fakeEmbeddings(),
       vectorStore,
-    }, passthroughStepRunner, { documentId: DOC_ID, generation: 1 });
+    }, step, { documentId: DOC_ID, generation: 1 });
 
+    expect(steps).toEqual([
+      'mark-processing',
+      'parse-and-chunk',
+      'embed-and-upsert',
+      'mark-ready',
+    ]);
     expect(result).toEqual({ outcome: 'ready', chunkCount: 1 });
     const row = await repo.findById(DOC_ID);
     expect(row).toMatchObject({ status: 'ready', chunkCount: 1, errorSummary: null });

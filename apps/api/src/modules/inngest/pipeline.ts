@@ -2,7 +2,6 @@ import type { EmbeddingClient, VectorStore } from '@omni/rag-core';
 import type { ObjectStore } from '../../lib/object-store';
 import type { DocumentUploadedPayload } from '../documents/events';
 import type { DocumentsRepo, KbDocumentRow } from '../documents/repo';
-import { Buffer } from 'node:buffer';
 import {
   chunkMarkdown,
   chunkText,
@@ -31,16 +30,6 @@ export type IngestOutcome
   = | { outcome: 'ready'; chunkCount: number }
     | { outcome: 'failed'; errorSummary: string }
     | { outcome: 'noop'; reason: 'missing_or_superseded' };
-
-interface FetchedObject {
-  filename: string;
-  contentType: string;
-  base64: string;
-}
-
-function bytesFromBase64(base64: string): Uint8Array {
-  return new Uint8Array(Buffer.from(base64, 'base64'));
-}
 
 async function requireCurrentRow(
   repo: DocumentsRepo,
@@ -77,36 +66,24 @@ export async function runIngestPipeline(
   if (!processing)
     return { outcome: 'noop', reason: 'missing_or_superseded' };
 
-  const fetched = await step.run('fetch-object', async (): Promise<FetchedObject | null> => {
+  // Fetch bytes inside parse-and-chunk (not a separate step) so large files are not
+  // base64-encoded into Inngest step output, which has a small payload cap.
+  const parsed = await step.run('parse-and-chunk', async () => {
     const row = await requireCurrentRow(deps.repo, documentId, generation);
     if (!row)
-      return null;
-    const bytes = await deps.objectStore.get(row.storageKey);
-    return {
-      filename: row.filename,
-      contentType: row.contentType,
-      base64: Buffer.from(bytes).toString('base64'),
-    };
-  });
-  if (!fetched)
-    return { outcome: 'noop', reason: 'missing_or_superseded' };
-
-  const parsed = await step.run('parse-and-chunk', async () => {
-    const stillCurrent = await requireCurrentRow(deps.repo, documentId, generation);
-    if (!stillCurrent)
       return { kind: 'noop' as const };
 
-    const bytes = bytesFromBase64(fetched.base64);
+    const bytes = await deps.objectStore.get(row.storageKey);
     const extracted = await extractDocument(bytes, {
-      filename: fetched.filename,
-      contentType: fetched.contentType,
+      filename: row.filename,
+      contentType: row.contentType,
     });
     if (extracted.empty)
       return { kind: 'empty' as const };
 
     const extension = resolveExtension({
-      filename: fetched.filename,
-      contentType: fetched.contentType,
+      filename: row.filename,
+      contentType: row.contentType,
     });
     const chunks = extension === '.md'
       ? chunkMarkdown(extracted.text)
@@ -118,7 +95,7 @@ export async function runIngestPipeline(
         index: chunk.index,
         text: chunk.text,
       })),
-      filename: fetched.filename,
+      filename: row.filename,
     };
   });
 
@@ -128,7 +105,7 @@ export async function runIngestPipeline(
   if (parsed.kind === 'empty') {
     const errorSummary = 'No extractable text';
     await step.run('mark-failed-empty', async () => {
-      await deps.repo.markFailed(documentId, generation, errorSummary);
+      await markIngestFailed(deps, payload, errorSummary);
     });
     return { outcome: 'failed', errorSummary };
   }
@@ -140,13 +117,18 @@ export async function runIngestPipeline(
 
     const vectors = await deps.embeddings.embed(parsed.chunks.map(chunk => chunk.text));
     await deps.vectorStore.upsertChunks(
-      parsed.chunks.map((chunk, index) => ({
-        documentId,
-        filename: parsed.filename,
-        chunkIndex: chunk.index,
-        text: chunk.text,
-        values: vectors[index] ?? [],
-      })),
+      parsed.chunks.map((chunk, index) => {
+        const values = vectors[index];
+        if (!values)
+          throw new Error(`Embedding response missing vector for chunk ${chunk.index}`);
+        return {
+          documentId,
+          filename: parsed.filename,
+          chunkIndex: chunk.index,
+          text: chunk.text,
+          values,
+        };
+      }),
     );
     return parsed.chunks.length;
   });
