@@ -1,0 +1,41 @@
+{
+  "name": "@omni/api",
+  "type": "module",
+  "version": "0.0.0",
+  "private": true,
+  "exports": {
+    "./app": "./src/app.ts"
+  },
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=.env src/index.ts",
+    "build": "tsdown",
+    "start": "node dist/index.js",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@clerk/backend": "^3.27.0",
+    "@clerk/hono": "^0.1.98",
+    "@hono/node-server": "^2.1.6",
+    "@hono/zod-openapi": "^1.6.3",
+    "@scalar/hono-api-reference": "^0.12.18",
+    "@t3-oss/env-core": "^0.13.11",
+    "drizzle-orm": "^0.45.4",
+    "hono": "^4.13.17",
+    "pg": "^8.23.1",
+    "pino": "^10.4.0",
+    "uuid": "^14.0.3",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@omni/config": "workspace:*",
+    "@omni/db": "workspace:*",
+    "@omni/types": "workspace:*",
+    "@types/node": "^24.0.0",
+    "pino-pretty": "^13.2.0",
+    "tsdown": "^0.23.7",
+    "tsx": "^4.23.15",
+    "vitest": "^5.1.0"
+  }
+}
