@@ -1,10 +1,23 @@
+import type { Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
+
+// Input sent before React hydrates is dropped, so retry until the menu opens.
+async function chooseTheme(page: Page, name: 'Dark' | 'System', open: () => Promise<void>): Promise<void> {
+  const item = page.getByRole('menuitemradio', { name });
+  await expect(async () => {
+    if (!await item.isVisible())
+      await open();
+    await expect(item).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 15_000 });
+  await item.click();
+}
 
 test('dark theme is on the document at first paint after reload', async ({ page }) => {
   await page.goto('/sign-in');
-  await page.getByRole('button', { name: 'Theme' }).focus();
-  await page.keyboard.press('Enter');
-  await page.getByRole('menuitemradio', { name: 'Dark' }).click();
+  await chooseTheme(page, 'Dark', async () => {
+    await page.getByRole('button', { name: 'Theme' }).focus();
+    await page.keyboard.press('Enter');
+  });
   await expect(page.locator('html')).toHaveClass(/\bdark\b/);
 
   await page.addInitScript(() => {
@@ -28,8 +41,7 @@ test('dark theme is on the document at first paint after reload', async ({ page 
 test('system theme follows prefers-color-scheme without a reload', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'light' });
   await page.goto('/sign-in');
-  await page.getByRole('button', { name: 'Theme' }).click();
-  await page.getByRole('menuitemradio', { name: 'System' }).click();
+  await chooseTheme(page, 'System', () => page.getByRole('button', { name: 'Theme' }).click());
   await expect(page.locator('html')).not.toHaveClass(/\bdark\b/);
 
   await page.emulateMedia({ colorScheme: 'dark' });

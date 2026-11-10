@@ -30,6 +30,8 @@ const webServerCommand = [
 
 export default defineConfig({
   testDir: './e2e',
+  // `next dev` compiles routes on first request; parallel workers all wait on it.
+  timeout: 60_000,
   fullyParallel: true,
   retries: process.env.CI ? 1 : 0,
   use: {
