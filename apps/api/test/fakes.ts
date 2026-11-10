@@ -28,6 +28,9 @@ export function fakeVectorStore(): VectorStore & { upserts: unknown[]; deleted: 
   return {
     upserts,
     deleted,
+    async search() {
+      return [];
+    },
     async upsertChunks(chunks) {
       upserts.push(chunks);
     },

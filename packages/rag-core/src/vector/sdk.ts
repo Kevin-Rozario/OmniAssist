@@ -27,6 +27,7 @@ export function createSdkPineconeVectorStore(
       deleteMany: async (ids) => {
         await index.documents.delete({ ids });
       },
+      search: request => index.documents.search(request),
       listPage: opts => index.documents.list(opts),
     },
   });

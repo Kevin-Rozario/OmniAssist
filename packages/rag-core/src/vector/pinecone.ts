@@ -1,4 +1,4 @@
-import type { KbChunk, VectorStore } from '../types';
+import type { KbChunk, KbSearchHit, KbSearchParams, VectorStore } from '../types';
 import { chunkId } from '../types';
 
 /** One document written to the `omniassist-kb` schema. */
@@ -13,8 +13,28 @@ export interface PineconeKbDocument {
   chunkIndex: number;
 }
 
+/** The `documents.search` request this store sends: one `embed` clause over `chunk_text`. */
+export interface PineconeSearchRequest {
+  scoreBy: Array<{ type: 'embed'; field: 'chunk_text'; query: string }>;
+  topK: number;
+  includeFields: string[];
+}
+
+/** One match from `documents.search`. Fields are optional because the index returns what exists. */
+export interface PineconeSearchMatch {
+  _id: string;
+  _score?: number | null;
+  chunk_text?: string;
+  filename?: string;
+  documentId?: string;
+  chunkIndex?: number;
+}
+
 export interface PineconeDocumentsClient {
   upsert: (documents: PineconeKbDocument[]) => Promise<void>;
+  search: (request: PineconeSearchRequest) => Promise<{
+    matches?: PineconeSearchMatch[];
+  }>;
   deleteMany: (ids: string[]) => Promise<void>;
   listPage: (options: {
     prefix: string;
@@ -40,6 +60,12 @@ export interface PineconeVectorStoreOptions {
 const DEFAULT_UPSERT_BATCH = 96;
 const DEFAULT_DELETE_BATCH = 1000;
 const LIST_PAGE_SIZE = 100;
+const SEARCH_FIELDS = [
+  'chunk_text',
+  'filename',
+  'documentId',
+  'chunkIndex',
+] as const;
 
 export function createPineconeVectorStore(
   options: PineconeVectorStoreOptions,
@@ -67,7 +93,70 @@ export function createPineconeVectorStore(
     async deleteByDocumentId(documentId: string): Promise<void> {
       await deleteByDocumentId(options.index, documentId, deleteBatchSize);
     },
+
+    async search(params: KbSearchParams): Promise<KbSearchHit[]> {
+      const query = params.query.trim();
+      if (query.length === 0)
+        throw new Error('Search query is empty');
+      if (!Number.isInteger(params.topK) || params.topK < 1)
+        throw new Error('Search topK must be a positive integer');
+
+      params.signal?.throwIfAborted();
+
+      const response = await abortable(
+        options.index.search({
+          scoreBy: [
+            { type: 'embed', field: 'chunk_text', query },
+          ],
+          topK: params.topK,
+          includeFields: [...SEARCH_FIELDS],
+        }),
+        params.signal,
+      );
+
+      return (response.matches ?? []).flatMap((match) => {
+        const hit = toSearchHit(match);
+        return hit
+          ? [hit]
+          : [];
+      });
+    },
   };
+}
+
+/** Drops a match missing a field the answer flow needs rather than inventing values. */
+function toSearchHit(match: PineconeSearchMatch): KbSearchHit | undefined {
+  const { chunk_text: text, filename, documentId, chunkIndex } = match;
+  if (
+    typeof text !== 'string'
+    || text.length === 0
+    || typeof filename !== 'string'
+    || typeof documentId !== 'string'
+    || typeof chunkIndex !== 'number'
+  ) {
+    return undefined;
+  }
+  return {
+    documentId,
+    filename,
+    chunkIndex,
+    text,
+    score: match._score ?? 0,
+  };
+}
+
+/** The SDK search call takes no signal, so cancellation is enforced here. */
+function abortable<T>(promise: Promise<T>, signal: AbortSignal | undefined): Promise<T> {
+  if (!signal)
+    return promise;
+
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(signal.reason);
+    signal.addEventListener('abort', onAbort, { once: true });
+    promise.then(resolve, reject).finally(() => {
+      signal.removeEventListener('abort', onAbort);
+    });
+  });
 }
 
 function toDocument(chunk: KbChunk): PineconeKbDocument {
