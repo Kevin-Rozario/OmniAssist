@@ -2,12 +2,12 @@
 
 The web app is hosted on Vercel. The API image is published to GHCR and run on the VPS behind the Caddy that is already installed on the host. This directory is the VPS bundle. Nothing here is applied automatically.
 
-| File | Purpose |
-| --- | --- |
-| `compose.yml` | API container, published only on `127.0.0.1:3000` |
-| `Caddyfile` | Host Caddy config: existing site plus the API host |
-| `api.env.example` | Template for the API environment |
-| `README.md` | This runbook |
+| File              | Purpose                                            |
+| ----------------- | -------------------------------------------------- |
+| `compose.yml`     | API container, published only on `127.0.0.1:3000`  |
+| `Caddyfile`       | Host Caddy config: existing site plus the API host |
+| `api.env.example` | Template for the API environment                   |
+| `README.md`       | This runbook                                       |
 
 `api.env` is created on the server from the example. It is gitignored. Do not commit it.
 
@@ -15,21 +15,21 @@ The web app is hosted on Vercel. The API image is published to GHCR and run on t
 
 `kevinrozario.com` is the existing site. Each product owns a subdomain. This product is `omniassist`. Its API is a host under that name, so another product can use the same shape (`other.kevinrozario.com`, `api.other.kevinrozario.com`).
 
-| Surface | Hostname | Where it runs |
-| --- | --- | --- |
-| Web | `omniassist.kevinrozario.com` | Vercel, public HTTPS on 443 |
-| API | `api.omniassist.kevinrozario.com` | VPS, host Caddy on 80 and 443 |
-| Clerk | `clerk.omniassist.kevinrozario.com` | Clerk, for this secondary application |
+| Surface | Hostname                            | Where it runs                         |
+| ------- | ----------------------------------- | ------------------------------------- |
+| Web     | `omniassist.kevinrozario.com`       | Vercel, public HTTPS on 443           |
+| API     | `api.omniassist.kevinrozario.com`   | VPS, host Caddy on 80 and 443         |
+| Clerk   | `clerk.omniassist.kevinrozario.com` | Clerk, for this secondary application |
 
 The browser calls the API directly. `WEB_ORIGINS` is a comma-separated list of exact origins and does not accept wildcards.
 
 ## Ports
 
-| Process | Port | Published |
-| --- | --- | --- |
-| Caddy already on the VPS | 80 and 443 | Yes. Do not start another Caddy |
-| API container | 3000 | Only on `127.0.0.1`, so the host Caddy can reach it |
-| Vercel (web) | 443 | Yes, by Vercel |
+| Process                  | Port       | Published                                           |
+| ------------------------ | ---------- | --------------------------------------------------- |
+| Caddy already on the VPS | 80 and 443 | Yes. Do not start another Caddy                     |
+| API container            | 3000       | Only on `127.0.0.1`, so the host Caddy can reach it |
+| Vercel (web)             | 443        | Yes, by Vercel                                      |
 
 Local development stays API `3000` and web `3001`.
 
@@ -127,15 +127,21 @@ The API container is limited to 512 MB. Raise `mem_limit` in `compose.yml` if th
 
 Document upload and ingestion need services that are not covered by `/ready` (that probe stays Postgres-only). Provision them before admins use the Knowledge Base page:
 
-| Service | What to create | Env vars in `api.env` |
-| --- | --- | --- |
-| Cloudflare R2 | Private bucket + S3 API token (Object Read & Write) | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, optional `R2_ENDPOINT` |
-| Pinecone | Serverless index, **1536** dimensions, **cosine** metric | `PINECONE_API_KEY`, `PINECONE_INDEX` |
-| OpenAI | API key for `text-embedding-3-small` embeddings | `OPENAI_API_KEY` |
-| Inngest Cloud | App whose serve URL is `https://api.omniassist.kevinrozario.com/api/inngest` | `INNGEST_SIGNING_KEY`, `INNGEST_EVENT_KEY` |
-| Upload cap | Optional override (default 10 MiB) | `KB_MAX_UPLOAD_BYTES` |
+| Service       | What to create                                                               | Env vars in `api.env`                                                                            |
+| ------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Cloudflare R2 | Private bucket + S3 API token (Object Read & Write)                          | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, optional `R2_ENDPOINT` |
+| Pinecone      | Serverless index, **1536** dimensions, **cosine** metric                     | `PINECONE_API_KEY`, `PINECONE_INDEX`                                                             |
+| OpenAI        | API key for `text-embedding-3-small` embeddings                              | `OPENAI_API_KEY`                                                                                 |
+| Inngest Cloud | App whose serve URL is `https://api.omniassist.kevinrozario.com/api/inngest` | `INNGEST_SIGNING_KEY`, `INNGEST_EVENT_KEY`                                                       |
+| Upload cap    | Optional override (default 10 MiB)                                           | `KB_MAX_UPLOAD_BYTES`                                                                            |
 
-After the API container is up with Inngest keys, open the Inngest dashboard and sync/register the app so `kb/ingest-document` is listed. Until sync succeeds, uploads create `pending` rows but ingestion jobs will not run. Recreate the container after editing these vars (`docker compose up -d --force-recreate`).
+Apply the `kb_documents` migration before first KB use (from a machine with `DATABASE_URL_DIRECT`):
+
+```sh
+pnpm --filter @omni/db db:migrate
+```
+
+After the API container is up with Inngest keys, open the Inngest dashboard and sync/register the app so function id `kb-ingest-document` (event `kb/document.uploaded`) is listed. Until sync succeeds, uploads create `pending` rows but ingestion jobs will not run. Recreate the container after editing these vars (`docker compose up -d --force-recreate`).
 
 Local seed of the Omni Corp Markdown corpus (dev only, not for production CI):
 
@@ -169,11 +175,11 @@ CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `mai
 
 Repository secrets, all optional:
 
-| Secret | Effect when absent |
-| --- | --- |
+| Secret                              | Effect when absent                                                                                                                     |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | The signed-out Playwright page still boots with a placeholder key. The Clerk widget may not render, so the sign-in assertion can fail. |
-| `CLERK_SECRET_KEY` | The signed-in Playwright test is skipped. |
-| `E2E_CLERK_USER_EMAIL` | The signed-in test looks up the admin user itself when this is unset and the secret is present. |
+| `CLERK_SECRET_KEY`                  | The signed-in Playwright test is skipped.                                                                                              |
+| `E2E_CLERK_USER_EMAIL`              | The signed-in test looks up the admin user itself when this is unset and the secret is present.                                        |
 
 `.github/workflows/api-image.yml` runs only on pushes to `production`. It pushes `ghcr.io/kevin-rozario/omniassist-api:<commit-sha>` and `:latest`. A push to `main` does not publish an image.
 
@@ -181,27 +187,27 @@ Repository secrets, all optional:
 
 Create one project from `Kevin-Rozario/OmniAssist`. Do not add `vercel.json`. Set the project in the dashboard.
 
-| Setting | Value |
-| --- | --- |
-| Production Branch | `production` |
-| Node.js Version | `24.x` |
-| Root Directory | `apps/web` |
-| Framework | Next.js |
-| Install Command | `cd ../.. && pnpm install --frozen-lockfile` |
-| Build Command | `cd ../.. && pnpm turbo run build --filter=@omni/web` |
-| Production domain | `omniassist.kevinrozario.com` |
+| Setting           | Value                                                 |
+| ----------------- | ----------------------------------------------------- |
+| Production Branch | `production`                                          |
+| Node.js Version   | `24.x`                                                |
+| Root Directory    | `apps/web`                                            |
+| Framework         | Next.js                                               |
+| Install Command   | `cd ../.. && pnpm install --frozen-lockfile`          |
+| Build Command     | `cd ../.. && pnpm turbo run build --filter=@omni/web` |
+| Production domain | `omniassist.kevinrozario.com`                         |
 
 Set these for Production. Use the production Clerk keys from the secondary application. For a Preview deployment, use the matching Clerk instance: development keys unless that preview is meant to use production.
 
-| Variable | Production value |
-| --- | --- |
-| `NEXT_PUBLIC_API_URL` | `https://api.omniassist.kevinrozario.com` |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | `pk_live_…` |
-| `CLERK_SECRET_KEY` | `sk_live_…` |
-| `NEXT_PUBLIC_CLERK_SIGN_IN_URL` | `/sign-in` |
-| `NEXT_PUBLIC_CLERK_SIGN_UP_URL` | `/sign-up` |
-| `NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL` | `/` |
-| `NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL` | `/` |
+| Variable                                          | Production value                          |
+| ------------------------------------------------- | ----------------------------------------- |
+| `NEXT_PUBLIC_API_URL`                             | `https://api.omniassist.kevinrozario.com` |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`               | `pk_live_…`                               |
+| `CLERK_SECRET_KEY`                                | `sk_live_…`                               |
+| `NEXT_PUBLIC_CLERK_SIGN_IN_URL`                   | `/sign-in`                                |
+| `NEXT_PUBLIC_CLERK_SIGN_UP_URL`                   | `/sign-up`                                |
+| `NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL` | `/`                                       |
+| `NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL` | `/`                                       |
 
 After the first production deployment, open `https://omniassist.kevinrozario.com`. A signed-out visit redirects to `/sign-in`.
 
