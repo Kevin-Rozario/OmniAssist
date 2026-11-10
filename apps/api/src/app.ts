@@ -1,5 +1,6 @@
 import type { AuthVerifier } from './lib/auth';
 import type { Logger } from './lib/logger';
+import type { DocumentsService } from './modules/documents/service';
 import type { DatabasePing } from './modules/health/service';
 import type { MeService } from './modules/me/service';
 import { Scalar } from '@scalar/hono-api-reference';
@@ -8,6 +9,7 @@ import { requireAuth } from './lib/auth';
 import { notFound, onError } from './lib/errors';
 import { createRouter } from './lib/openapi';
 import { accessLog, REQUEST_ID_HEADER, requestContext } from './lib/request-context';
+import { documentsRoutes } from './modules/documents/routes';
 import { healthRoutes } from './modules/health/routes';
 import { meRoutes } from './modules/me/routes';
 
@@ -16,6 +18,7 @@ export interface AppDeps {
   webOrigins: string[];
   verifier: AuthVerifier;
   meService: MeService;
+  documentsService: DocumentsService;
   pingDatabase: DatabasePing;
   readinessTimeoutMs?: number;
 }
@@ -56,7 +59,8 @@ export function createApp(deps: AppDeps) {
 
   return app
     .route('/', healthRoutes(deps))
-    .route('/v1', meRoutes(deps.meService));
+    .route('/v1', meRoutes(deps.meService))
+    .route('/v1', documentsRoutes(deps.documentsService));
 }
 
 export type App = ReturnType<typeof createApp>;

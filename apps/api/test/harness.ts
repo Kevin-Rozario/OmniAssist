@@ -1,8 +1,10 @@
 import type { AppDeps } from '../src/app';
 import type { AuthVerifier } from '../src/lib/auth';
 import type { AuthSession } from '../src/lib/context';
+import type { DocumentsService } from '../src/modules/documents/service';
 import { Writable } from 'node:stream';
 import { createApp } from '../src/app';
+import { NotFoundError } from '../src/lib/errors';
 import { createLogger } from '../src/lib/logger';
 
 export const WEB_ORIGIN = 'http://localhost:3001';
@@ -41,6 +43,22 @@ export function fakeVerifier(sessions: Record<string, FakeToken> = {}): AuthVeri
   };
 }
 
+const stubDocumentsService: DocumentsService = {
+  create: async () => {
+    throw new Error('documentsService.create is not configured in this test');
+  },
+  list: async () => ({ documents: [] }),
+  get: async (id) => {
+    throw new NotFoundError(`Document ${id} does not exist.`);
+  },
+  delete: async (id) => {
+    throw new NotFoundError(`Document ${id} does not exist.`);
+  },
+  reingest: async (id) => {
+    throw new NotFoundError(`Document ${id} does not exist.`);
+  },
+};
+
 export function buildTestApp(overrides: Partial<AppDeps> = {}) {
   const log = captureLogger();
   const app = createApp({
@@ -55,6 +73,7 @@ export function buildTestApp(overrides: Partial<AppDeps> = {}) {
         role: session.role,
       }),
     },
+    documentsService: stubDocumentsService,
     pingDatabase: async () => {},
     ...overrides,
   });

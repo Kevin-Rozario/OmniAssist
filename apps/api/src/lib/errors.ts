@@ -1,4 +1,4 @@
-import type { ProblemDetails, ValidationIssue } from '@omni/types';
+import type { DocumentUploadError, ProblemDetails, ValidationIssue } from '@omni/types';
 import type { Context, ErrorHandler, NotFoundHandler } from 'hono';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import type { ZodError } from 'zod';
@@ -54,6 +54,29 @@ export class ValidationError extends AppError {
 
   override extensions(): Record<string, unknown> {
     return { errors: this.errors };
+  }
+}
+
+/** Upload rejected before object storage (unsupported format or oversize). */
+export class DocumentUploadRejectedError extends AppError {
+  readonly status = 400;
+  readonly type = problemType.badRequest;
+  readonly title = 'Bad request';
+
+  constructor(readonly uploadError: DocumentUploadError) {
+    super(uploadError.message);
+  }
+
+  override extensions(): Record<string, unknown> {
+    return {
+      reason: this.uploadError.reason,
+      ...(this.uploadError.maxBytes !== undefined
+        ? { maxBytes: this.uploadError.maxBytes }
+        : {}),
+      ...(this.uploadError.contentType !== undefined
+        ? { contentType: this.uploadError.contentType }
+        : {}),
+    };
   }
 }
 
