@@ -1,12 +1,11 @@
-import type { VectorStore } from '@omni/rag-core';
-import type { ObjectStore } from '../src/lib/object-store';
 import type { DocumentUploadedPayload } from '../src/modules/documents/events';
 import { DocumentDetailSchema, ProblemDetailsSchema } from '@omni/types';
 import { describe, expect, it } from 'vitest';
 import { problemType } from '../src/lib/errors';
-import { memoryDocumentsRepo } from '../src/modules/documents/repo';
 import { createDocumentsService } from '../src/modules/documents/service';
+import { fakeObjectStore, fakeVectorStore } from './fakes';
 import { buildTestApp, fakeVerifier } from './harness';
+import { memoryDocumentsRepo } from './memory-documents-repo';
 
 const DOC_ID = '019a1b2c-3d4e-7f80-9abc-def012345678';
 const MAX_BYTES = 1_024;
@@ -15,36 +14,6 @@ const sessions = {
   'member-token': { userId: 'user_member', role: 'member' as const },
   'admin-token': { userId: 'user_admin', role: 'admin' as const },
 };
-
-function fakeObjectStore(): ObjectStore & { objects: Map<string, { body: Uint8Array; contentType: string }> } {
-  const objects = new Map<string, { body: Uint8Array; contentType: string }>();
-  return {
-    objects,
-    async put(key, body, contentType) {
-      objects.set(key, { body, contentType });
-    },
-    async get(key) {
-      const entry = objects.get(key);
-      if (!entry)
-        throw new Error(`missing ${key}`);
-      return entry.body;
-    },
-    async delete(key) {
-      objects.delete(key);
-    },
-  };
-}
-
-function fakeVectorStore(): VectorStore & { deleted: string[] } {
-  const deleted: string[] = [];
-  return {
-    deleted,
-    async upsertChunks() {},
-    async deleteByDocumentId(documentId) {
-      deleted.push(documentId);
-    },
-  };
-}
 
 function buildDocumentsApp(options?: { createId?: () => string }) {
   const objectStore = fakeObjectStore();
@@ -182,6 +151,28 @@ describe('/v1/documents', () => {
     });
     expect(oversized.status).toBe(400);
     expect(await readProblem(oversized)).toMatchObject({
+      type: problemType.badRequest,
+      reason: 'oversized',
+      maxBytes: MAX_BYTES,
+    });
+    expect(objectStore.objects.size).toBe(0);
+  });
+
+  it('rejects a body far past the size limit as oversized without storing it', async () => {
+    const { app, objectStore } = buildDocumentsApp();
+    const form = new FormData();
+    form.append('file', new File([
+      'x'.repeat(128 * 1024),
+    ], 'huge.md', { type: 'text/markdown' }));
+
+    const res = await app.request('/v1/documents', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer admin-token' },
+      body: form,
+    });
+
+    expect(res.status).toBe(400);
+    expect(await readProblem(res)).toMatchObject({
       type: problemType.badRequest,
       reason: 'oversized',
       maxBytes: MAX_BYTES,

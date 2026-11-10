@@ -20,3 +20,18 @@ describe.skipIf(!url)('createDb', () => {
     expect(db.$client.options.max).toBe(5);
   });
 });
+
+describe('createDb pool errors', () => {
+  it('routes idle connection errors to onPoolError instead of crashing', async () => {
+    const errors: Error[] = [];
+    const db = createDb('postgresql://user:pass@127.0.0.1:1/none', {
+      onPoolError: error => errors.push(error),
+    });
+
+    const failure = new Error('terminating connection due to administrator command');
+    expect(() => db.$client.emit('error', failure)).not.toThrow();
+    expect(errors).toEqual([failure]);
+
+    await db.$client.end();
+  });
+});

@@ -11,7 +11,7 @@ import {
 } from '@/lib/api-client';
 import { useMe } from '@/lib/use-me';
 
-export const documentsQueryKey = ['documents'] as const;
+const documentsQueryKey = ['documents'] as const;
 
 function isInFlight(status: DocumentStatus): boolean {
   return status === 'pending' || status === 'processing';

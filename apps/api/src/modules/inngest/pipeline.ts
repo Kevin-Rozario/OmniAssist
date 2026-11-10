@@ -21,10 +21,6 @@ export interface IngestStepRunner {
   run: <T>(id: string, fn: () => Promise<T>) => Promise<T>;
 }
 
-export const passthroughStepRunner: IngestStepRunner = {
-  run: async (_id, fn) => fn(),
-};
-
 export type IngestOutcome
   = | { outcome: 'ready'; chunkCount: number }
     | { outcome: 'failed'; errorSummary: string }

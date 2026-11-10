@@ -91,7 +91,7 @@ export function createDocumentsService(options: DocumentsServiceOptions): Docume
       try {
         row = await repo.insert({
           id,
-          filename: displayFilename(input.filename) || safeName,
+          filename: displayFilename(input.filename),
           contentType,
           byteSize: input.bytes.byteLength,
           storageKey: key,
@@ -158,9 +158,8 @@ export function createDocumentsService(options: DocumentsServiceOptions): Docume
       try {
         await objectStore.delete(bumped.storageKey);
       }
-      catch (error) {
+      catch {
         // Best-effort object cleanup; the DB row and index chunks are already removed.
-        void error;
       }
     },
 

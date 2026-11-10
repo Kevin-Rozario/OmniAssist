@@ -1,16 +1,19 @@
-import type { VectorStore } from '@omni/rag-core';
-import type { ObjectStore } from '../src/lib/object-store';
 import type { KbDocumentRow } from '../src/modules/documents/repo';
+import type { IngestStepRunner } from '../src/modules/inngest/pipeline';
 import { describe, expect, it } from 'vitest';
-import { memoryDocumentsRepo } from '../src/modules/documents/repo';
 import { createInngestClient } from '../src/modules/inngest/client';
 import { createIngestDocumentFunction } from '../src/modules/inngest/functions';
 import {
   markIngestFailed,
-  passthroughStepRunner,
   runIngestPipeline,
 } from '../src/modules/inngest/pipeline';
 import { sanitizeErrorSummary } from '../src/modules/inngest/sanitize';
+import { fakeObjectStore, fakeVectorStore } from './fakes';
+import { memoryDocumentsRepo } from './memory-documents-repo';
+
+const passthroughStepRunner: IngestStepRunner = {
+  run: async (_id, fn) => fn(),
+};
 
 const DOC_ID = '019a1b2c-3d4e-7f80-9abc-def012345678';
 
@@ -31,42 +34,6 @@ function seedRow(overrides: Partial<KbDocumentRow> = {}): KbDocumentRow {
     createdAt: now,
     updatedAt: now,
     ...overrides,
-  };
-}
-
-function fakeObjectStore(initial: Record<string, Uint8Array> = {}): ObjectStore {
-  const objects = new Map(Object.entries(initial).map(([key, body]) => [
-    key,
-    body,
-  ]));
-  return {
-    async put(key, body) {
-      objects.set(key, body);
-    },
-    async get(key) {
-      const body = objects.get(key);
-      if (!body)
-        throw new Error(`missing object ${key}`);
-      return body;
-    },
-    async delete(key) {
-      objects.delete(key);
-    },
-  };
-}
-
-function fakeVectorStore(): VectorStore & { upserts: unknown[]; deleted: string[] } {
-  const upserts: unknown[] = [];
-  const deleted: string[] = [];
-  return {
-    upserts,
-    deleted,
-    async upsertChunks(chunks) {
-      upserts.push(chunks);
-    },
-    async deleteByDocumentId(documentId) {
-      deleted.push(documentId);
-    },
   };
 }
 

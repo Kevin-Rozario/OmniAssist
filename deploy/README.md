@@ -170,7 +170,7 @@ docker compose logs -f api
 
 `main` is the integration branch. `production` is the release branch. The VPS clone tracks `production`.
 
-CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `main` and `production`. It installs with pnpm, restores the Turborepo cache from GitHub Actions cache, then runs `turbo run lint typecheck test build`. Playwright runs only when a push or pull request changes `apps/web/**` or `packages/ui/**`.
+CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `main` and `production`. It installs with pnpm, restores the Turborepo cache from GitHub Actions cache, then runs `turbo run lint lint:root typecheck test build`. Playwright runs only when a push or pull request changes `apps/web/**` or `packages/ui/**`.
 
 Repository secrets, all optional:
 

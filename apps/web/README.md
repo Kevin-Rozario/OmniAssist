@@ -1,6 +1,6 @@
 # @omni/web
 
-Next.js app for OmniAssist AI. Signed-in pages use the responsive shell and load the current user from the API.
+Next.js app for OmniAssist AI. Signed-in pages use the responsive shell and load the current user from the API. Admins also get a Knowledge Base page (`/knowledge-base`) to upload, retry and delete documents; members see a forbidden state.
 
 ## Setup
 

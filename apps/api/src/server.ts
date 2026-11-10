@@ -17,7 +17,9 @@ import { createMeService } from './modules/me/service';
 
 export function startServer(env: Env): void {
   const logger = createLogger({ level: env.LOG_LEVEL, pretty: env.NODE_ENV === 'development' });
-  const db = createDb(env.DATABASE_URL);
+  const db = createDb(env.DATABASE_URL, {
+    onPoolError: error => logger.error({ err: error }, 'idle database connection failed'),
+  });
   const kbDeps = createKbDeps(env);
   const clerk = createClerkClient({ secretKey: env.CLERK_SECRET_KEY, publishableKey: env.CLERK_PUBLISHABLE_KEY });
   const documentsRepo = drizzleDocumentsRepo(db);

@@ -62,17 +62,9 @@ export function createApp(deps: AppDeps) {
   });
   app.get('/docs', Scalar({ url: '/openapi.json', pageTitle: 'OmniAssist AI API' }));
 
-  if (deps.inngestHandler) {
-    app.on(
-      [
-        'GET',
-        'PUT',
-        'POST',
-      ],
-      '/api/inngest',
-      c => deps.inngestHandler!(c),
-    );
-  }
+  const { inngestHandler } = deps;
+  if (inngestHandler)
+    app.on(['GET', 'PUT', 'POST'], '/api/inngest', c => inngestHandler(c));
 
   return app
     .route('/', healthRoutes(deps))

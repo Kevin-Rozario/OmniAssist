@@ -9,7 +9,7 @@ import { createLogger } from '../src/lib/logger';
 
 export const WEB_ORIGIN = 'http://localhost:3001';
 
-export function captureLogger() {
+function captureLogger() {
   const lines: string[] = [];
   const destination = new Writable({
     write(chunk, _encoding, callback) {

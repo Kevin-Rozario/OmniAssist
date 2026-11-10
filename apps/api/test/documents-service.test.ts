@@ -1,42 +1,11 @@
-import type { VectorStore } from '@omni/rag-core';
-import type { ObjectStore } from '../src/lib/object-store';
 import type { DocumentUploadedPayload } from '../src/modules/documents/events';
 import { describe, expect, it, vi } from 'vitest';
 import { NotFoundError, UpstreamError } from '../src/lib/errors';
-import { memoryDocumentsRepo } from '../src/modules/documents/repo';
 import { createDocumentsService } from '../src/modules/documents/service';
+import { fakeObjectStore, fakeVectorStore } from './fakes';
+import { memoryDocumentsRepo } from './memory-documents-repo';
 
 const DOC_ID = '019a1b2c-3d4e-7f80-9abc-def012345678';
-
-function fakeObjectStore(): ObjectStore & { objects: Map<string, Uint8Array> } {
-  const objects = new Map<string, Uint8Array>();
-  return {
-    objects,
-    async put(key, body) {
-      objects.set(key, body);
-    },
-    async get(key) {
-      const body = objects.get(key);
-      if (!body)
-        throw new Error(`missing ${key}`);
-      return body;
-    },
-    async delete(key) {
-      objects.delete(key);
-    },
-  };
-}
-
-function fakeVectorStore(): VectorStore & { deleted: string[] } {
-  const deleted: string[] = [];
-  return {
-    deleted,
-    async upsertChunks() {},
-    async deleteByDocumentId(documentId) {
-      deleted.push(documentId);
-    },
-  };
-}
 
 function recordingEvents() {
   const uploaded: DocumentUploadedPayload[] = [];

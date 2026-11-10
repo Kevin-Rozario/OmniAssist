@@ -23,7 +23,7 @@ const ACCEPTED_UPLOADS = '.md,.pdf,.txt,.docx';
 export function KnowledgeBaseView() {
   const me = useMe();
 
-  if (me.isLoading || (me.isPending && !me.data)) {
+  if (me.isPending) {
     return (
       <section className="max-w-3xl space-y-3" aria-busy="true">
         <Skeleton className="h-8 w-48" role="status" aria-label="Loading Knowledge Base" />
@@ -144,7 +144,7 @@ function AdminKnowledgeBase() {
           )
         : null}
 
-      {documents.isLoading || (documents.isPending && !documents.data)
+      {documents.isPending
         ? (
             <div className="space-y-2" role="status" aria-label="Loading documents">
               <Skeleton className="h-12 w-full" />

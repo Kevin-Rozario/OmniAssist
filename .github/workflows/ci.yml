@@ -51,7 +51,7 @@ jobs:
             ${{ runner.os }}-turbo-
 
       - name: Lint, typecheck, test, and build
-        run: pnpm turbo run lint typecheck test build --cache-dir=.turbo
+        run: pnpm turbo run lint lint:root typecheck test build --cache-dir=.turbo
 
   e2e:
     name: Playwright

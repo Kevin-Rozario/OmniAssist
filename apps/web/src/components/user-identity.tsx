@@ -8,7 +8,7 @@ import { useMe } from '@/lib/use-me';
 export function UserIdentity() {
   const me = useMe();
 
-  if (me.isLoading || (me.isPending && !me.data)) {
+  if (me.isPending) {
     return <Skeleton className="h-4 w-24" role="status" aria-label="Loading profile" />;
   }
 

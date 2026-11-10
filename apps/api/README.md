@@ -26,6 +26,7 @@ Fill `apps/api/.env`:
 | `R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_BUCKET` | Cloudflare R2 object storage for KB uploads (`R2_ENDPOINT` optional) |
 | `PINECONE_API_KEY` / `PINECONE_INDEX` | Pinecone document index. `chunk_text` is embedded by Pinecone (`text-embedding-3-small`, 1536, cosine). `title` is English full-text. |
 | `INNGEST_SIGNING_KEY` / `INNGEST_EVENT_KEY` | Inngest Cloud keys; serve URL is `/api/inngest` |
+| `INNGEST_DEV` | Optional. Set to `1` locally to use the Inngest dev server (`npx inngest-cli@latest dev -u http://127.0.0.1:3000/api/inngest`) |
 | `KB_MAX_UPLOAD_BYTES` | Max upload size (default `10485760`) |
 
 In the Clerk dashboard, set the session token claim `metadata` to `{{user.public_metadata}}`. Give one development user `public_metadata.role` of `admin`. Everyone else is treated as `member`.

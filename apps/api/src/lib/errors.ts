@@ -5,7 +5,7 @@ import type { ZodError } from 'zod';
 import type { AppEnv } from './context';
 import { HTTPException } from 'hono/http-exception';
 
-export const PROBLEM_BASE_URI = 'https://omni-it-copilot.dev/problems';
+const PROBLEM_BASE_URI = 'https://omni-it-copilot.dev/problems';
 export const PROBLEM_CONTENT_TYPE = 'application/problem+json';
 
 export const problemType = {
@@ -20,7 +20,7 @@ export const problemType = {
   serviceUnavailable: `${PROBLEM_BASE_URI}/service-unavailable`,
 } as const;
 
-export abstract class AppError extends Error {
+abstract class AppError extends Error {
   abstract readonly status: ContentfulStatusCode;
   abstract readonly type: string;
   abstract readonly title: string;
@@ -106,22 +106,10 @@ export class NotFoundError extends AppError {
   readonly title = 'Not found';
 }
 
-export class ConflictError extends AppError {
-  readonly status = 409;
-  readonly type = problemType.conflict;
-  readonly title = 'Conflict';
-}
-
 export class UpstreamError extends AppError {
   readonly status = 502;
   readonly type = problemType.upstream;
   readonly title = 'Upstream service failed';
-}
-
-export class ServiceUnavailableError extends AppError {
-  readonly status = 503;
-  readonly type = problemType.serviceUnavailable;
-  readonly title = 'Service unavailable';
 }
 
 const typeByStatus: Partial<Record<number, string>> = {
@@ -155,7 +143,7 @@ interface ProblemInit {
   [extension: string]: unknown;
 }
 
-export function problemResponse(c: Context<AppEnv>, status: ContentfulStatusCode, problem: ProblemInit): Response {
+function problemResponse(c: Context<AppEnv>, status: ContentfulStatusCode, problem: ProblemInit): Response {
   const body: ProblemDetails = { ...problem, status, requestId: c.var.requestId };
   return c.body(JSON.stringify(body), status, { 'Content-Type': PROBLEM_CONTENT_TYPE });
 }
