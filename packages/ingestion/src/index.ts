@@ -15,5 +15,3 @@ export {
   resolveExtension,
 } from './extract';
 export type { ExtractResult, SupportedExtension, TextChunk } from './types';
-
-export const INGESTION_PACKAGE_NAME = '@omni/ingestion' as const;

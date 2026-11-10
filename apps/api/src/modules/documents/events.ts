@@ -5,16 +5,7 @@ export interface DocumentUploadedPayload {
   generation: number;
 }
 
-/**
- * Emits ingestion-trigger events. Production will use Inngest (section 6);
- * tests inject a fake recorder.
- */
+/** Emits ingestion-trigger events. Production uses Inngest; tests inject a fake recorder. */
 export interface DocumentEvents {
   emitUploaded: (payload: DocumentUploadedPayload) => Promise<void>;
-}
-
-export function noopDocumentEvents(): DocumentEvents {
-  return {
-    async emitUploaded() {},
-  };
 }

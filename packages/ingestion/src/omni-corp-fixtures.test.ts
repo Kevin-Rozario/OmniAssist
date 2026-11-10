@@ -10,13 +10,10 @@ const omniCorpDir = join(
 );
 
 describe('omni-corp fixtures', () => {
-  const files = readdirSync(omniCorpDir).filter(name => name.endsWith('.md'));
-
-  it('includes at least one Markdown policy', () => {
-    expect(files.length).toBeGreaterThan(0);
-  });
-
   it('parses and chunks each Omni Corp Markdown fixture', async () => {
+    const files = readdirSync(omniCorpDir).filter(name => name.endsWith('.md'));
+    expect(files.length).toBeGreaterThan(0);
+
     for (const name of files) {
       const bytes = new Uint8Array(readFileSync(join(omniCorpDir, name)));
       const extracted = await extractDocument(bytes, { filename: name });

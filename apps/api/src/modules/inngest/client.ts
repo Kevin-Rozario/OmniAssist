@@ -1,14 +1,4 @@
-import type { DOCUMENT_UPLOADED_EVENT } from '../documents/events';
 import { Inngest } from 'inngest';
-
-export interface InngestEvents {
-  [DOCUMENT_UPLOADED_EVENT]: {
-    data: {
-      documentId: string;
-      generation: number;
-    };
-  };
-}
 
 export interface CreateInngestClientOptions {
   appId?: string;

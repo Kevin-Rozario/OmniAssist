@@ -2,10 +2,8 @@ import { z } from '@hono/zod-openapi';
 import {
   DocumentDetailSchema,
   DocumentListResponseSchema,
-  DocumentSummarySchema,
 } from '@omni/types';
 
-export const DocumentSummaryOpenApiSchema = DocumentSummarySchema.meta({ id: 'DocumentSummary' });
 export const DocumentDetailOpenApiSchema = DocumentDetailSchema.meta({ id: 'DocumentDetail' });
 export const DocumentListResponseOpenApiSchema = DocumentListResponseSchema.meta({
   id: 'DocumentListResponse',

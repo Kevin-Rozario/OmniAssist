@@ -1,5 +1,6 @@
 'use client';
 
+import type { DocumentStatus } from '@omni/types';
 import { useAuth } from '@clerk/nextjs';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -12,7 +13,7 @@ import { useMe } from '@/lib/use-me';
 
 export const documentsQueryKey = ['documents'] as const;
 
-function isInFlight(status: string): boolean {
+function isInFlight(status: DocumentStatus): boolean {
   return status === 'pending' || status === 'processing';
 }
 
