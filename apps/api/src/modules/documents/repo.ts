@@ -1,7 +1,7 @@
 import type { Database } from '@omni/db';
 import type { DocumentStatus } from '@omni/types';
+import { and, desc, eq, sql } from '@omni/db';
 import { kbDocuments } from '@omni/db/schema';
-import { desc, eq, sql } from 'drizzle-orm';
 
 export interface KbDocumentRow {
   id: string;
@@ -40,6 +40,18 @@ export interface DocumentsRepo {
   /** Bump generation, reset to pending for re-ingest. */
   prepareReingest: (id: string) => Promise<KbDocumentRow | null>;
   delete: (id: string) => Promise<void>;
+  /** Set processing when id + generation still match; otherwise null (noop). */
+  markProcessing: (id: string, expectedGeneration: number) => Promise<KbDocumentRow | null>;
+  markReady: (
+    id: string,
+    expectedGeneration: number,
+    chunkCount: number,
+  ) => Promise<KbDocumentRow | null>;
+  markFailed: (
+    id: string,
+    expectedGeneration: number,
+    errorSummary: string,
+  ) => Promise<KbDocumentRow | null>;
 }
 
 function mapRow(row: typeof kbDocuments.$inferSelect): KbDocumentRow {
@@ -58,6 +70,13 @@ function mapRow(row: typeof kbDocuments.$inferSelect): KbDocumentRow {
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
+}
+
+function generationMatch(id: string, expectedGeneration: number) {
+  return and(
+    eq(kbDocuments.id, id),
+    eq(kbDocuments.ingestionGeneration, expectedGeneration),
+  );
 }
 
 export function drizzleDocumentsRepo(db: Database): DocumentsRepo {
@@ -128,6 +147,50 @@ export function drizzleDocumentsRepo(db: Database): DocumentsRepo {
     async delete(id) {
       await db.delete(kbDocuments).where(eq(kbDocuments.id, id));
     },
+
+    async markProcessing(id, expectedGeneration) {
+      const [row] = await db.update(kbDocuments)
+        .set({
+          status: 'processing',
+          errorSummary: null,
+          updatedAt: new Date(),
+        })
+        .where(generationMatch(id, expectedGeneration))
+        .returning();
+      return row
+        ? mapRow(row)
+        : null;
+    },
+
+    async markReady(id, expectedGeneration, chunkCount) {
+      const [row] = await db.update(kbDocuments)
+        .set({
+          status: 'ready',
+          chunkCount,
+          errorSummary: null,
+          updatedAt: new Date(),
+        })
+        .where(generationMatch(id, expectedGeneration))
+        .returning();
+      return row
+        ? mapRow(row)
+        : null;
+    },
+
+    async markFailed(id, expectedGeneration, errorSummary) {
+      const [row] = await db.update(kbDocuments)
+        .set({
+          status: 'failed',
+          errorSummary,
+          chunkCount: null,
+          updatedAt: new Date(),
+        })
+        .where(generationMatch(id, expectedGeneration))
+        .returning();
+      return row
+        ? mapRow(row)
+        : null;
+    },
   };
 }
 
@@ -137,6 +200,19 @@ export function memoryDocumentsRepo(seed: KbDocumentRow[] = []): DocumentsRepo {
     row.id,
     { ...row },
   ]));
+
+  function withGeneration(
+    id: string,
+    expectedGeneration: number,
+    update: (row: KbDocumentRow) => KbDocumentRow,
+  ): KbDocumentRow | null {
+    const row = rows.get(id);
+    if (!row || row.ingestionGeneration !== expectedGeneration)
+      return null;
+    const updated = update(row);
+    rows.set(id, updated);
+    return { ...updated };
+  }
 
   return {
     async insert(input) {
@@ -206,6 +282,35 @@ export function memoryDocumentsRepo(seed: KbDocumentRow[] = []): DocumentsRepo {
 
     async delete(id) {
       rows.delete(id);
+    },
+
+    async markProcessing(id, expectedGeneration) {
+      return withGeneration(id, expectedGeneration, row => ({
+        ...row,
+        status: 'processing',
+        errorSummary: null,
+        updatedAt: new Date(),
+      }));
+    },
+
+    async markReady(id, expectedGeneration, chunkCount) {
+      return withGeneration(id, expectedGeneration, row => ({
+        ...row,
+        status: 'ready',
+        chunkCount,
+        errorSummary: null,
+        updatedAt: new Date(),
+      }));
+    },
+
+    async markFailed(id, expectedGeneration, errorSummary) {
+      return withGeneration(id, expectedGeneration, row => ({
+        ...row,
+        status: 'failed',
+        errorSummary,
+        chunkCount: null,
+        updatedAt: new Date(),
+      }));
     },
   };
 }

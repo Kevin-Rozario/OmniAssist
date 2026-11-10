@@ -10,4 +10,4 @@ export function createDb(url: string): Database {
   return drizzle({ client: pool, schema });
 }
 
-export { sql } from 'drizzle-orm';
+export { and, desc, eq, sql } from 'drizzle-orm';
