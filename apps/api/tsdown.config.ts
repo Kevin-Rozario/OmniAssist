@@ -11,5 +11,7 @@ export default defineConfig({
   dts: false,
   outExtensions: () => ({ js: '.js' }),
   // Workspace packages ship TypeScript source, so they must be bundled.
-  noExternal: [/^@omni\//],
+  deps: {
+    alwaysBundle: [/^@omni\//],
+  },
 });
