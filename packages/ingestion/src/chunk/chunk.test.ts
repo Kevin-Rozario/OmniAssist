@@ -33,16 +33,15 @@ describe('chunkText', () => {
 
     const chunks = chunkText(text);
     expect(chunks.length).toBeGreaterThan(1);
-    for (const chunk of chunks)
+    for (const chunk of chunks) {
       expect(chunk.text.length).toBeLessThanOrEqual(DEFAULT_CHUNK_SIZE);
+      expect(text.includes(chunk.text)).toBe(true);
+    }
 
     const [first, second] = chunks;
     expect(first && second).toBeTruthy();
     const overlapWindow = first!.text.slice(-DEFAULT_CHUNK_OVERLAP);
-    expect(
-      second!.text.includes(overlapWindow)
-      || overlapWindow.split(/\s+/).some(token => token.length > 8 && second!.text.includes(token)),
-    ).toBe(true);
+    expect(second!.text.startsWith(overlapWindow)).toBe(true);
   });
 });
 
@@ -54,5 +53,11 @@ describe('chunkMarkdown', () => {
     expect(chunks.length).toBeGreaterThan(1);
     expect(chunks.some(chunk => chunk.text.includes('Password Policy'))).toBe(true);
     expect(chunks.some(chunk => chunk.text.includes('Reset Process'))).toBe(true);
+    for (const chunk of chunks)
+      expect(text.includes(chunk.text)).toBe(true);
+    for (let index = 1; index < chunks.length; index++) {
+      const overlapWindow = chunks[index - 1]!.text.slice(-20);
+      expect(chunks[index]!.text.startsWith(overlapWindow)).toBe(true);
+    }
   });
 });
