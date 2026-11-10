@@ -15,7 +15,8 @@
     "lint:fix": "eslint --fix .",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
-    "test:e2e": "turbo run test:e2e"
+    "test:e2e": "turbo run test:e2e",
+    "seed-kb": "jiti scripts/seed-kb.ts"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^10.0.0",
