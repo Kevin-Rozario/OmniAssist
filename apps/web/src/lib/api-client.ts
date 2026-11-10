@@ -1,6 +1,16 @@
 import type { AppType } from '@omni/api/app';
-import type { MeResponse, ProblemDetails } from '@omni/types';
-import { MeResponseSchema, ProblemDetailsSchema } from '@omni/types';
+import type {
+  DocumentDetail,
+  DocumentListResponse,
+  MeResponse,
+  ProblemDetails,
+} from '@omni/types';
+import {
+  DocumentDetailSchema,
+  DocumentListResponseSchema,
+  MeResponseSchema,
+  ProblemDetailsSchema,
+} from '@omni/types';
 import { hc } from 'hono/client';
 import { env } from '@/env';
 
@@ -26,6 +36,41 @@ export async function fetchMe(getToken: GetToken): Promise<MeResponse> {
   const client = createApiClient(getToken);
   const response = await client.v1.me.$get();
   return MeResponseSchema.parse(await response.json());
+}
+
+export async function listDocuments(getToken: GetToken): Promise<DocumentListResponse> {
+  const client = createApiClient(getToken);
+  const response = await client.v1.documents.$get();
+  return DocumentListResponseSchema.parse(await response.json());
+}
+
+export async function uploadDocument(
+  getToken: GetToken,
+  file: File,
+): Promise<DocumentDetail> {
+  const client = createApiClient(getToken);
+  const response = await client.v1.documents.$post({
+    form: { file },
+  });
+  return DocumentDetailSchema.parse(await response.json());
+}
+
+export async function deleteDocument(getToken: GetToken, id: string): Promise<void> {
+  const client = createApiClient(getToken);
+  await client.v1.documents[':id'].$delete({
+    param: { id },
+  });
+}
+
+export async function reingestDocument(
+  getToken: GetToken,
+  id: string,
+): Promise<DocumentDetail> {
+  const client = createApiClient(getToken);
+  const response = await client.v1.documents[':id'].reingest.$post({
+    param: { id },
+  });
+  return DocumentDetailSchema.parse(await response.json());
 }
 
 function authenticatedFetch(getToken: GetToken): typeof fetch {
