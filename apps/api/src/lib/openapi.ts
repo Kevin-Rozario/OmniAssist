@@ -19,6 +19,7 @@ const problemDescriptions = {
   401: 'The session token is missing or invalid.',
   403: 'The caller lacks the required role.',
   404: 'The resource does not exist.',
+  413: 'The request body is too large.',
   500: 'An unexpected error occurred.',
   502: 'An upstream service failed.',
   503: 'A required dependency is unavailable.',

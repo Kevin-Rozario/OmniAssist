@@ -1,6 +1,8 @@
 import type { DocumentsService } from './service';
 import { createRoute } from '@hono/zod-openapi';
+import { bodyLimit } from 'hono/body-limit';
 import { currentSession, requireRole } from '../../lib/auth';
+import { DocumentUploadRejectedError } from '../../lib/errors';
 import { createRouter, problemResponses } from '../../lib/openapi';
 import {
   DocumentDetailOpenApiSchema,
@@ -120,19 +122,37 @@ const reingestDocumentRoute = createRoute({
   },
 });
 
-export function documentsRoutes(service: DocumentsService) {
+export interface DocumentsRoutesOptions {
+  maxUploadBytes: number;
+}
+
+export function documentsRoutes(
+  service: DocumentsService,
+  options: DocumentsRoutesOptions,
+) {
   const router = createRouter();
-  // Apply before openapi handlers; do not chain `.use()` into the return type
-  // or OpenAPIHono drops route types needed by the Hono RPC client.
-  router.use('*', requireRole('admin'));
+  // Scope admin auth to document paths only so other /v1 routers are unaffected.
+  // Do not chain `.use()` into the return type or OpenAPIHono drops RPC types.
+  router.use('/documents', requireRole('admin'));
+  router.use('/documents/*', requireRole('admin'));
+  // Reject oversized multipart bodies before buffering into memory.
+  const multipartBudget = options.maxUploadBytes + 64 * 1024;
+  router.use('/documents', bodyLimit({
+    maxSize: multipartBudget,
+    onError: () => {
+      throw new DocumentUploadRejectedError({
+        reason: 'oversized',
+        message: `File exceeds the size limit of ${options.maxUploadBytes} bytes.`,
+        maxBytes: options.maxUploadBytes,
+      });
+    },
+  }));
 
   return router
     .openapi(listDocumentsRoute, async (c) => {
-      currentSession(c);
       return c.json(await service.list(), 200);
     })
     .openapi(getDocumentRoute, async (c) => {
-      currentSession(c);
       const { id } = c.req.valid('param');
       return c.json(await service.get(id), 200);
     })
@@ -149,13 +169,11 @@ export function documentsRoutes(service: DocumentsService) {
       return c.json(document, 201);
     })
     .openapi(deleteDocumentRoute, async (c) => {
-      currentSession(c);
       const { id } = c.req.valid('param');
       await service.delete(id);
       return c.body(null, 204);
     })
     .openapi(reingestDocumentRoute, async (c) => {
-      currentSession(c);
       const { id } = c.req.valid('param');
       return c.json(await service.reingest(id), 200);
     });

@@ -2,7 +2,7 @@ import type { VectorStore } from '@omni/rag-core';
 import type { ObjectStore } from '../src/lib/object-store';
 import type { DocumentUploadedPayload } from '../src/modules/documents/events';
 import { describe, expect, it, vi } from 'vitest';
-import { NotFoundError } from '../src/lib/errors';
+import { NotFoundError, UpstreamError } from '../src/lib/errors';
 import { memoryDocumentsRepo } from '../src/modules/documents/repo';
 import { createDocumentsService } from '../src/modules/documents/service';
 
@@ -165,5 +165,64 @@ describe('createDocumentsService', () => {
       { documentId: DOC_ID, generation: 3 },
     ]);
     expect(again).toMatchObject({ id: DOC_ID, status: 'pending' });
+  });
+
+  it('marks the document failed when enqueue fails on create', async () => {
+    const repo = memoryDocumentsRepo();
+    const service = createDocumentsService({
+      repo,
+      objectStore: fakeObjectStore(),
+      vectorStore: fakeVectorStore(),
+      events: {
+        emitUploaded: async () => {
+          throw new Error('inngest down');
+        },
+      },
+      maxUploadBytes: 10_000,
+      createId: () => DOC_ID,
+    });
+
+    await expect(service.create({
+      filename: 'policy.md',
+      bytes: new TextEncoder().encode('# Policy'),
+      uploadedBy: 'user_admin',
+    })).rejects.toBeInstanceOf(UpstreamError);
+
+    expect(await repo.findById(DOC_ID)).toMatchObject({
+      status: 'failed',
+      errorSummary: 'Could not enqueue ingestion',
+    });
+  });
+
+  it('marks the document failed when enqueue fails on reingest', async () => {
+    const repo = memoryDocumentsRepo();
+    let failEmit = false;
+    const service = createDocumentsService({
+      repo,
+      objectStore: fakeObjectStore(),
+      vectorStore: fakeVectorStore(),
+      events: {
+        emitUploaded: async () => {
+          if (failEmit)
+            throw new Error('inngest down');
+        },
+      },
+      maxUploadBytes: 10_000,
+      createId: () => DOC_ID,
+    });
+
+    await service.create({
+      filename: 'policy.md',
+      bytes: new TextEncoder().encode('# Policy'),
+      uploadedBy: 'user_admin',
+    });
+
+    failEmit = true;
+    await expect(service.reingest(DOC_ID)).rejects.toBeInstanceOf(UpstreamError);
+    expect(await repo.findById(DOC_ID)).toMatchObject({
+      status: 'failed',
+      errorSummary: 'Could not enqueue ingestion',
+      ingestionGeneration: 2,
+    });
   });
 });

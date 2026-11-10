@@ -32,12 +32,6 @@ export function startServer(env: Env): void {
     vectorStore: kbDeps.vectorStore,
   };
 
-  logger.debug({
-    embeddingModelId: kbDeps.embeddingModelId,
-    ingestionPackageName: kbDeps.ingestionPackageName,
-    maxUploadBytes: kbDeps.maxUploadBytes,
-  }, 'kb packages wired');
-
   const app = createApp({
     logger,
     webOrigins: env.WEB_ORIGINS,
@@ -56,6 +50,7 @@ export function startServer(env: Env): void {
       events: inngestDocumentEvents(inngest),
       maxUploadBytes: kbDeps.maxUploadBytes,
     }),
+    maxUploadBytes: kbDeps.maxUploadBytes,
     inngestHandler: createInngestHandler(inngest, ingestDeps),
     pingDatabase: async () => {
       await db.execute(sql`select 1`);

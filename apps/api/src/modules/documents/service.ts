@@ -6,7 +6,7 @@ import type { DocumentsRepo, KbDocumentRow } from './repo';
 import { createHash } from 'node:crypto';
 import { v7 as uuidv7 } from 'uuid';
 import { NotFoundError, UpstreamError } from '../../lib/errors';
-import { assertSupportedUpload, storageKeyFor } from './formats';
+import { assertSupportedUpload, displayFilename, storageKeyFor } from './formats';
 
 export interface DocumentsServiceOptions {
   repo: DocumentsRepo;
@@ -91,7 +91,7 @@ export function createDocumentsService(options: DocumentsServiceOptions): Docume
       try {
         row = await repo.insert({
           id,
-          filename: input.filename.split(/[/\\]/).pop()?.trim() || safeName,
+          filename: displayFilename(input.filename) || safeName,
           contentType,
           byteSize: input.bytes.byteLength,
           storageKey: key,
@@ -109,10 +109,20 @@ export function createDocumentsService(options: DocumentsServiceOptions): Docume
         throw new UpstreamError('Could not create the document record.', { cause: error });
       }
 
-      await events.emitUploaded({
-        documentId: row.id,
-        generation: row.ingestionGeneration,
-      });
+      try {
+        await events.emitUploaded({
+          documentId: row.id,
+          generation: row.ingestionGeneration,
+        });
+      }
+      catch (error) {
+        await repo.markFailed(
+          row.id,
+          row.ingestionGeneration,
+          'Could not enqueue ingestion',
+        );
+        throw new UpstreamError('Could not enqueue document ingestion.', { cause: error });
+      }
 
       return toDetail(row);
     },
@@ -159,10 +169,20 @@ export function createDocumentsService(options: DocumentsServiceOptions): Docume
       if (!row)
         throw new NotFoundError(`Document ${id} does not exist.`);
 
-      await events.emitUploaded({
-        documentId: row.id,
-        generation: row.ingestionGeneration,
-      });
+      try {
+        await events.emitUploaded({
+          documentId: row.id,
+          generation: row.ingestionGeneration,
+        });
+      }
+      catch (error) {
+        await repo.markFailed(
+          row.id,
+          row.ingestionGeneration,
+          'Could not enqueue ingestion',
+        );
+        throw new UpstreamError('Could not enqueue document ingestion.', { cause: error });
+      }
 
       return toDetail(row);
     },

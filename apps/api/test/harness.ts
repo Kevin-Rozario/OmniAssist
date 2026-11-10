@@ -74,6 +74,7 @@ export function buildTestApp(overrides: Partial<AppDeps> = {}) {
       }),
     },
     documentsService: stubDocumentsService,
+    maxUploadBytes: 10 * 1024 * 1024,
     pingDatabase: async () => {},
     ...overrides,
   });

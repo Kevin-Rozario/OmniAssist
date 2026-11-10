@@ -20,6 +20,8 @@ export interface AppDeps {
   verifier: AuthVerifier;
   meService: MeService;
   documentsService: DocumentsService;
+  /** Enforced on POST /v1/documents before the body is fully buffered. */
+  maxUploadBytes: number;
   pingDatabase: DatabasePing;
   readinessTimeoutMs?: number;
   /** Background-jobs serve path; outside `/v1`, no Clerk session required. */
@@ -75,8 +77,9 @@ export function createApp(deps: AppDeps) {
   return app
     .route('/', healthRoutes(deps))
     .route('/v1', meRoutes(deps.meService))
-    .route('/v1', documentsRoutes(deps.documentsService));
+    .route('/v1', documentsRoutes(deps.documentsService, {
+      maxUploadBytes: deps.maxUploadBytes,
+    }));
 }
 
-export type App = ReturnType<typeof createApp>;
-export type AppType = App;
+export type AppType = ReturnType<typeof createApp>;

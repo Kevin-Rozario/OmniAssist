@@ -66,6 +66,7 @@ function buildDocumentsApp(options?: { createId?: () => string }) {
   const { app } = buildTestApp({
     verifier: fakeVerifier(sessions),
     documentsService: service,
+    maxUploadBytes: MAX_BYTES,
   });
 
   return {
@@ -129,6 +130,20 @@ describe('/v1/documents', () => {
     expect(await readProblem(member)).toMatchObject({ type: problemType.forbidden, status: 403 });
 
     const anon = await app.request('/v1/documents');
+    expect(anon.status).toBe(401);
+    expect(await readProblem(anon)).toMatchObject({ type: problemType.unauthenticated, status: 401 });
+  });
+
+  it('does not apply admin role to unrelated /v1 paths', async () => {
+    const { app } = buildDocumentsApp();
+
+    const member = await app.request('/v1/nope', {
+      headers: { Authorization: 'Bearer member-token' },
+    });
+    expect(member.status).toBe(404);
+    expect(await readProblem(member)).toMatchObject({ type: problemType.notFound, status: 404 });
+
+    const anon = await app.request('/v1/nope');
     expect(anon.status).toBe(401);
     expect(await readProblem(anon)).toMatchObject({ type: problemType.unauthenticated, status: 401 });
   });

@@ -23,9 +23,14 @@ export function isSupportedExtension(ext: string): ext is SupportedUploadExtensi
   return Object.hasOwn(SUPPORTED_UPLOAD_EXTENSIONS, ext);
 }
 
+/** Original basename for display (paths stripped; empty falls back to `file`). */
+export function displayFilename(filename: string): string {
+  return filename.split(/[/\\]/).pop()?.trim() || 'file';
+}
+
 /** Strip path segments and replace characters unsafe in object keys. */
 export function safeFilename(filename: string): string {
-  const base = filename.split(/[/\\]/).pop()?.trim() || 'file';
+  const base = displayFilename(filename);
   const cleaned = base.replace(/[^\w.\-+() ]+/g, '_').replace(/\s+/g, ' ').trim();
   return (cleaned || 'file').slice(0, 200);
 }
