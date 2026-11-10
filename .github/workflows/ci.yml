@@ -108,6 +108,25 @@ jobs:
             ${{ runner.os }}-turbo-e2e-
             ${{ runner.os }}-turbo-
 
+      - name: Require Clerk secrets
+        if: steps.changes.outputs.run == 'true'
+        env:
+          PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+        run: |
+          set -eu
+          if [ -z "$PUBLISHABLE_KEY" ] || [ -z "$SECRET_KEY" ]; then
+            echo "::error::Add NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY and CLERK_SECRET_KEY (Clerk dev instance) under Settings > Secrets and variables > Actions. Without them Clerk's dev handshake cannot resolve and every page load fails."
+            exit 1
+          fi
+          case "$PUBLISHABLE_KEY:$SECRET_KEY" in
+            pk_test_*:sk_test_*) ;;
+            *)
+              echo "::error::The e2e secrets must be the Clerk DEVELOPMENT instance keys (pk_test_ / sk_test_), the same ones as apps/web/.env.local. Production keys (pk_live_ / sk_live_) cannot sign in from localhost."
+              exit 1
+              ;;
+          esac
+
       - name: Install Playwright
         if: steps.changes.outputs.run == 'true'
         run: pnpm --filter @omni/web exec playwright install --with-deps chromium
