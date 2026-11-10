@@ -1,0 +1,17 @@
+node_modules
+.pnpm-store
+.env*
+!.env.example
+.turbo
+.next
+next-env.d.ts
+dist
+coverage
+playwright-report
+test-results
+*.tsbuildinfo
+.DS_Store
+.cursor/
+openspec/
+enterprise_it_support_agentic_rag_copilot_specification.md
+apps/web/AGENTS.md
