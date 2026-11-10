@@ -1,6 +1,7 @@
 export { EMBEDDING_DIMENSIONS, EMBEDDING_MODEL_ID } from './constants';
 export {
   createOpenAiEmbeddingsClient,
+  createOpenAiEmbeddingsFromApiKey,
   type OpenAiEmbeddingsOptions,
   type OpenAiEmbeddingsTransport,
   openAiSdkTransport,

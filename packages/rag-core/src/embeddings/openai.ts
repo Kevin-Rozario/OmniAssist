@@ -1,4 +1,5 @@
 import type { EmbeddingClient } from '../types';
+import OpenAI from 'openai';
 import { EMBEDDING_MODEL_ID } from '../constants';
 
 export interface OpenAiEmbeddingsTransport {
@@ -62,4 +63,16 @@ export function openAiSdkTransport(client: {
   return {
     createEmbeddings: body => client.embeddings.create(body),
   };
+}
+
+/** Production embeddings client from an OpenAI API key. */
+export function createOpenAiEmbeddingsFromApiKey(
+  apiKey: string,
+  options: Omit<OpenAiEmbeddingsOptions, 'transport'> = {},
+): EmbeddingClient {
+  const client = new OpenAI({ apiKey });
+  return createOpenAiEmbeddingsClient({
+    ...options,
+    transport: openAiSdkTransport(client),
+  });
 }
