@@ -28,7 +28,6 @@ export function startServer(env: Env): void {
   const ingestDeps = {
     repo: documentsRepo,
     objectStore: kbDeps.objectStore,
-    embeddings: kbDeps.embeddings,
     vectorStore: kbDeps.vectorStore,
   };
 

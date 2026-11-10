@@ -1,21 +1,12 @@
-export { EMBEDDING_DIMENSIONS, EMBEDDING_MODEL_ID } from './constants';
 export {
-  createOpenAiEmbeddingsClient,
-  createOpenAiEmbeddingsFromApiKey,
-  type OpenAiEmbeddingsOptions,
-  type OpenAiEmbeddingsTransport,
-  openAiSdkTransport,
-} from './embeddings/openai';
-export {
-  type ChunkVector,
-  type EmbeddingClient,
-  vectorId,
+  chunkId,
+  type KbChunk,
   type VectorStore,
 } from './types';
 export {
   createPineconeVectorStore,
-  type PineconeIndexClient,
-  type PineconeRecord,
+  type PineconeDocumentsClient,
+  type PineconeKbDocument,
   type PineconeVectorStoreOptions,
 } from './vector/pinecone';
 export {

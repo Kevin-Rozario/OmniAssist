@@ -24,8 +24,7 @@ Fill `apps/api/.env`:
 | `CLERK_SECRET_KEY` | Clerk secret key (`sk_test_…`) |
 | `CLERK_PUBLISHABLE_KEY` | Clerk publishable key (`pk_test_…`) |
 | `R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_BUCKET` | Cloudflare R2 object storage for KB uploads (`R2_ENDPOINT` optional) |
-| `PINECONE_API_KEY` / `PINECONE_INDEX` | Pinecone index (1536 dims, cosine) |
-| `OPENAI_API_KEY` | Embeddings during ingestion (`text-embedding-3-small`) |
+| `PINECONE_API_KEY` / `PINECONE_INDEX` | Pinecone document index. `chunk_text` is embedded by Pinecone (`text-embedding-3-small`, 1536, cosine). `title` is English full-text. |
 | `INNGEST_SIGNING_KEY` / `INNGEST_EVENT_KEY` | Inngest Cloud keys; serve URL is `/api/inngest` |
 | `KB_MAX_UPLOAD_BYTES` | Max upload size (default `10485760`) |
 
@@ -37,7 +36,7 @@ Apply database migrations when `DATABASE_URL_DIRECT` points at the dev branch:
 pnpm --filter @omni/db db:migrate
 ```
 
-This creates `kb_documents` (and any later tables). `/ready` still only pings Postgres; R2/Pinecone/OpenAI/Inngest failures surface on document operations or as `failed` status.
+This creates `kb_documents` (and any later tables). `/ready` still only pings Postgres; R2/Pinecone/Inngest failures surface on document operations or as `failed` status.
 
 ## Scripts
 

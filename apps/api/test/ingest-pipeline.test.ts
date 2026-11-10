@@ -1,8 +1,10 @@
-import type { EmbeddingClient, VectorStore } from '@omni/rag-core';
+import type { VectorStore } from '@omni/rag-core';
 import type { ObjectStore } from '../src/lib/object-store';
 import type { KbDocumentRow } from '../src/modules/documents/repo';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { memoryDocumentsRepo } from '../src/modules/documents/repo';
+import { createInngestClient } from '../src/modules/inngest/client';
+import { createIngestDocumentFunction } from '../src/modules/inngest/functions';
 import {
   markIngestFailed,
   passthroughStepRunner,
@@ -53,15 +55,6 @@ function fakeObjectStore(initial: Record<string, Uint8Array> = {}): ObjectStore 
   };
 }
 
-function fakeEmbeddings(impl?: EmbeddingClient['embed']): EmbeddingClient {
-  return {
-    embed: impl ?? (async texts => texts.map((_, index) => [
-      index + 0.1,
-      index + 0.2,
-    ])),
-  };
-}
-
 function fakeVectorStore(): VectorStore & { upserts: unknown[]; deleted: string[] } {
   const upserts: unknown[] = [];
   const deleted: string[] = [];
@@ -87,7 +80,7 @@ describe('sanitizeErrorSummary', () => {
 });
 
 describe('runIngestPipeline', () => {
-  it('marks a clean text document ready and upserts vectors', async () => {
+  it('marks a clean text document ready and upserts chunks', async () => {
     const bytes = new TextEncoder().encode('VPN access uses WireGuard on udp/51820.');
     const repo = memoryDocumentsRepo([
       seedRow({ byteSize: bytes.byteLength }),
@@ -103,14 +96,12 @@ describe('runIngestPipeline', () => {
     const result = await runIngestPipeline({
       repo,
       objectStore: fakeObjectStore({ [`kb/${DOC_ID}/vpn.txt`]: bytes }),
-      embeddings: fakeEmbeddings(),
       vectorStore,
     }, step, { documentId: DOC_ID, generation: 1 });
 
     expect(steps).toEqual([
       'mark-processing',
-      'parse-and-chunk',
-      'embed-and-upsert',
+      'parse-and-upsert',
       'mark-ready',
     ]);
     expect(result).toEqual({ outcome: 'ready', chunkCount: 1 });
@@ -139,7 +130,6 @@ describe('runIngestPipeline', () => {
     const result = await runIngestPipeline({
       repo,
       objectStore: fakeObjectStore({ [`kb/${DOC_ID}/empty.txt`]: bytes }),
-      embeddings: fakeEmbeddings(),
       vectorStore: fakeVectorStore(),
     }, passthroughStepRunner, { documentId: DOC_ID, generation: 1 });
 
@@ -148,6 +138,46 @@ describe('runIngestPipeline', () => {
       status: 'failed',
       errorSummary: 'No extractable text',
     });
+  });
+
+  it('removes vectors written after the document was deleted mid-upsert', async () => {
+    const bytes = new TextEncoder().encode('VPN access uses WireGuard on udp/51820.');
+    const repo = memoryDocumentsRepo([
+      seedRow({ byteSize: bytes.byteLength }),
+    ]);
+    const vectorStore = fakeVectorStore();
+    vectorStore.upsertChunks = async (chunks) => {
+      vectorStore.upserts.push(chunks);
+      await repo.delete(DOC_ID);
+    };
+
+    const result = await runIngestPipeline({
+      repo,
+      objectStore: fakeObjectStore({ [`kb/${DOC_ID}/vpn.txt`]: bytes }),
+      vectorStore,
+    }, passthroughStepRunner, { documentId: DOC_ID, generation: 1 });
+
+    expect(result).toEqual({ outcome: 'noop', reason: 'missing_or_superseded' });
+    expect(vectorStore.deleted).toEqual([DOC_ID]);
+    expect(await repo.findById(DOC_ID)).toBeNull();
+  });
+
+  it('runs one ingestion at a time for a document', () => {
+    const inngest = createInngestClient({ eventKey: 'test-event-key' });
+    const fn = createIngestDocumentFunction(inngest, {
+      repo: memoryDocumentsRepo(),
+      objectStore: fakeObjectStore(),
+      vectorStore: fakeVectorStore(),
+    });
+
+    expect(fn.opts.concurrency).toEqual({
+      limit: 1,
+      key: 'event.data.documentId',
+    });
+    expect(fn.opts.retries).toBe(3);
+    expect(fn.opts.triggers).toEqual([
+      { event: 'kb/document.uploaded' },
+    ]);
   });
 
   it('no-ops when generation was superseded by delete', async () => {
@@ -160,7 +190,6 @@ describe('runIngestPipeline', () => {
     const result = await runIngestPipeline({
       repo,
       objectStore: fakeObjectStore({ [`kb/${DOC_ID}/vpn.txt`]: bytes }),
-      embeddings: fakeEmbeddings(),
       vectorStore: fakeVectorStore(),
     }, passthroughStepRunner, { documentId: DOC_ID, generation: 1 });
 
@@ -182,7 +211,6 @@ describe('runIngestPipeline', () => {
     const result = await runIngestPipeline({
       repo,
       objectStore: fakeObjectStore({ [`kb/${DOC_ID}/vpn.txt`]: bytes }),
-      embeddings: fakeEmbeddings(),
       vectorStore,
     }, passthroughStepRunner, { documentId: DOC_ID, generation: 1 });
 
@@ -194,20 +222,20 @@ describe('runIngestPipeline', () => {
     expect(vectorStore.upserts).toHaveLength(0);
   });
 
-  it('marks failed without secrets after embed retries are exhausted', async () => {
-    const bytes = new TextEncoder().encode('needs embeddings');
+  it('marks failed without secrets after upsert retries are exhausted', async () => {
+    const bytes = new TextEncoder().encode('needs indexing');
     const repo = memoryDocumentsRepo([
       seedRow({ byteSize: bytes.byteLength }),
     ]);
-    const embed = vi.fn(async () => {
-      throw new Error('OpenAI unauthorized sk-openai_secret_value');
-    });
+    const vectorStore = fakeVectorStore();
+    vectorStore.upsertChunks = async () => {
+      throw new Error('Pinecone unauthorized sk-openai_secret_value');
+    };
 
     await expect(runIngestPipeline({
       repo,
       objectStore: fakeObjectStore({ [`kb/${DOC_ID}/vpn.txt`]: bytes }),
-      embeddings: fakeEmbeddings(embed),
-      vectorStore: fakeVectorStore(),
+      vectorStore,
     }, passthroughStepRunner, { documentId: DOC_ID, generation: 1 })).rejects.toThrow(/unauthorized/i);
 
     const summary = await markIngestFailed(

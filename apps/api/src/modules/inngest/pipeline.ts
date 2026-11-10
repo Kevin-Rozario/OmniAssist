@@ -1,4 +1,4 @@
-import type { EmbeddingClient, VectorStore } from '@omni/rag-core';
+import type { VectorStore } from '@omni/rag-core';
 import type { ObjectStore } from '../../lib/object-store';
 import type { DocumentUploadedPayload } from '../documents/events';
 import type { DocumentsRepo, KbDocumentRow } from '../documents/repo';
@@ -13,7 +13,6 @@ import { sanitizeErrorSummary } from './sanitize';
 export interface IngestPipelineDeps {
   repo: DocumentsRepo;
   objectStore: ObjectStore;
-  embeddings: EmbeddingClient;
   vectorStore: VectorStore;
 }
 
@@ -30,6 +29,50 @@ export type IngestOutcome
   = | { outcome: 'ready'; chunkCount: number }
     | { outcome: 'failed'; errorSummary: string }
     | { outcome: 'noop'; reason: 'missing_or_superseded' };
+
+type LoadedChunks
+  = | { kind: 'noop' }
+    | { kind: 'empty' }
+    | {
+      kind: 'chunks';
+      filename: string;
+      chunks: Array<{ index: number; text: string }>;
+    };
+
+async function loadChunks(
+  deps: IngestPipelineDeps,
+  documentId: string,
+  generation: number,
+): Promise<LoadedChunks> {
+  const row = await requireCurrentRow(deps.repo, documentId, generation);
+  if (!row)
+    return { kind: 'noop' };
+
+  const bytes = await deps.objectStore.get(row.storageKey);
+  const extracted = await extractDocument(bytes, {
+    filename: row.filename,
+    contentType: row.contentType,
+  });
+  if (extracted.empty)
+    return { kind: 'empty' };
+
+  const extension = resolveExtension({
+    filename: row.filename,
+    contentType: row.contentType,
+  });
+  const chunks = extension === '.md'
+    ? chunkMarkdown(extracted.text)
+    : chunkText(extracted.text);
+
+  return {
+    kind: 'chunks',
+    filename: row.filename,
+    chunks: chunks.map(chunk => ({
+      index: chunk.index,
+      text: chunk.text,
+    })),
+  };
+}
 
 async function requireCurrentRow(
   repo: DocumentsRepo,
@@ -66,37 +109,29 @@ export async function runIngestPipeline(
   if (!processing)
     return { outcome: 'noop', reason: 'missing_or_superseded' };
 
-  // Fetch bytes inside parse-and-chunk (not a separate step) so large files are not
-  // base64-encoded into Inngest step output, which has a small payload cap.
-  const parsed = await step.run('parse-and-chunk', async () => {
-    const row = await requireCurrentRow(deps.repo, documentId, generation);
-    if (!row)
+  // Parse and upsert in one step. Inngest stores step output (4 MiB cap), so the
+  // step returns only a count. The object bytes are read inside the step.
+  const parsed = await step.run('parse-and-upsert', async () => {
+    const loaded = await loadChunks(deps, documentId, generation);
+    if (loaded.kind !== 'chunks')
+      return loaded;
+
+    await deps.vectorStore.upsertChunks(loaded.chunks.map(chunk => ({
+      documentId,
+      filename: loaded.filename,
+      chunkIndex: chunk.index,
+      text: chunk.text,
+    })));
+
+    // A delete or re-ingest can land while this upsert is in flight. Drop the
+    // vectors we just wrote so they are not left behind for a removed generation.
+    const stillCurrent = await requireCurrentRow(deps.repo, documentId, generation);
+    if (!stillCurrent) {
+      await deps.vectorStore.deleteByDocumentId(documentId);
       return { kind: 'noop' as const };
+    }
 
-    const bytes = await deps.objectStore.get(row.storageKey);
-    const extracted = await extractDocument(bytes, {
-      filename: row.filename,
-      contentType: row.contentType,
-    });
-    if (extracted.empty)
-      return { kind: 'empty' as const };
-
-    const extension = resolveExtension({
-      filename: row.filename,
-      contentType: row.contentType,
-    });
-    const chunks = extension === '.md'
-      ? chunkMarkdown(extracted.text)
-      : chunkText(extracted.text);
-
-    return {
-      kind: 'chunks' as const,
-      chunks: chunks.map(chunk => ({
-        index: chunk.index,
-        text: chunk.text,
-      })),
-      filename: row.filename,
-    };
+    return { kind: 'chunks' as const, chunkCount: loaded.chunks.length };
   });
 
   if (parsed.kind === 'noop')
@@ -110,31 +145,7 @@ export async function runIngestPipeline(
     return { outcome: 'failed', errorSummary };
   }
 
-  const chunkCount = await step.run('embed-and-upsert', async () => {
-    const stillCurrent = await requireCurrentRow(deps.repo, documentId, generation);
-    if (!stillCurrent)
-      return null;
-
-    const vectors = await deps.embeddings.embed(parsed.chunks.map(chunk => chunk.text));
-    await deps.vectorStore.upsertChunks(
-      parsed.chunks.map((chunk, index) => {
-        const values = vectors[index];
-        if (!values)
-          throw new Error(`Embedding response missing vector for chunk ${chunk.index}`);
-        return {
-          documentId,
-          filename: parsed.filename,
-          chunkIndex: chunk.index,
-          text: chunk.text,
-          values,
-        };
-      }),
-    );
-    return parsed.chunks.length;
-  });
-
-  if (chunkCount === null)
-    return { outcome: 'noop', reason: 'missing_or_superseded' };
+  const chunkCount = parsed.chunkCount;
 
   const ready = await step.run('mark-ready', async () => {
     return deps.repo.markReady(documentId, generation, chunkCount);

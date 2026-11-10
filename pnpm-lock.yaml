@@ -253,11 +253,8 @@ importers:
   packages/rag-core:
     dependencies:
       '@pinecone-database/pinecone':
-        specifier: ^6.0.0
-        version: 6.1.4
-      openai:
-        specifier: ^6.0.0
-        version: 6.49.0(@aws-sdk/credential-provider-node@3.972.95)(@smithy/signature-v4@5.7.5)(zod@4.6.7)
+        specifier: ^9.2.0
+        version: 9.2.0
     devDependencies:
       '@omni/config':
         specifier: workspace:*
@@ -2198,9 +2195,9 @@ packages:
   '@oxc-project/types@0.157.0':
     resolution: {integrity: sha512-95iTox1qdt6WGWce3xwNOVayByOfLaYAq+qGPpub6NWbBh9sv0GG3+zyfh9ZBCO/jVu5A0EWI+qQI7g6fevjxg==}
 
-  '@pinecone-database/pinecone@6.1.4':
-    resolution: {integrity: sha512-wkipvpkBYNGYDeYj4azVVyCzSrekJE3Pgo0HImkbw80SGnTo9gz5kSbDCXCfVvFnhqC2q4nGikdTUvFCDiuruA==}
-    engines: {node: '>=18.0.0'}
+  '@pinecone-database/pinecone@9.2.0':
+    resolution: {integrity: sha512-fk2v0nzNoP0MqnYkEilUkMr+cKEzet2csBnb5Tz9qrnwnW/Ft/wOGRWT+HxpTCGwkvA/cFxBld7QPJlTUSGCfw==}
+    engines: {node: '>=22.0.0'}
 
   '@pinojs/redact@0.4.0':
     resolution: {integrity: sha512-k2ENnmBugE/rzQfEcdWHcCY+/FM3VLzH9cYEsbdsoqrvzAKRhUZeRNhAZvB8OitQJ1TBed3yqWtdjzS6wJKBwg==}
@@ -5169,26 +5166,6 @@ packages:
   once@1.4.0:
     resolution: {integrity: sha512-lNaJgI+2Q5URQBkccEKHTQOPaXdUxnZZElQTZY0MFUAuaEqe1E+Nyvgdz/aIyNi6Z9MzO5dv1H8n58/GELp3+w==}
 
-  openai@6.49.0:
-    resolution: {integrity: sha512-aYCc0C6L864eR6WSYIwQGyXriw/nIyZx0ObvhzOEVuk0zoBDpynjSbrionWI7q65B5H8jJX0DXR9snEzM6bfPg==}
-    peerDependencies:
-      '@aws-sdk/credential-provider-node': '>=3.972.0 <4'
-      '@smithy/hash-node': '>=4.3.0 <5'
-      '@smithy/signature-v4': '>=5.4.0 <6'
-      ws: ^8.18.0
-      zod: ^3.25 || ^4.0
-    peerDependenciesMeta:
-      '@aws-sdk/credential-provider-node':
-        optional: true
-      '@smithy/hash-node':
-        optional: true
-      '@smithy/signature-v4':
-        optional: true
-      ws:
-        optional: true
-      zod:
-        optional: true
-
   openapi3-ts@4.6.2:
     resolution: {integrity: sha512-gyyil3DweqhXiEhTqtAs9wwRLfWHmetwhI4kmM5Rn0d6gtmK863Ki7qqbQnp9+Wwlqoe3B1LFWj7kMp5ctE4rQ==}
 
@@ -8069,7 +8046,7 @@ snapshots:
 
   '@oxc-project/types@0.157.0': {}
 
-  '@pinecone-database/pinecone@6.1.4': {}
+  '@pinecone-database/pinecone@9.2.0': {}
 
   '@pinojs/redact@0.4.0': {}
 
@@ -11126,12 +11103,6 @@ snapshots:
   once@1.4.0:
     dependencies:
       wrappy: 1.0.2
-
-  openai@6.49.0(@aws-sdk/credential-provider-node@3.972.95)(@smithy/signature-v4@5.7.5)(zod@4.6.7):
-    optionalDependencies:
-      '@aws-sdk/credential-provider-node': 3.972.95
-      '@smithy/signature-v4': 5.7.5
-      zod: 4.6.7
 
   openapi3-ts@4.6.2:
     dependencies:

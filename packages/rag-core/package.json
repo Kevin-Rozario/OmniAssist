@@ -12,8 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@pinecone-database/pinecone": "^6.0.0",
-    "openai": "^6.0.0"
+    "@pinecone-database/pinecone": "^9.2.0"
   },
   "devDependencies": {
     "@omni/config": "workspace:*",

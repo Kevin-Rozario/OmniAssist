@@ -11,7 +11,6 @@ const SECRET_VALUES = {
   publishableKey: 'pk_test_publishable_value',
   r2Secret: 'r2_secret_access_key_value',
   pineconeKey: 'pinecone_api_key_value',
-  openaiKey: 'sk-openai_secret_value',
   inngestSigning: 'signkey-inngest_secret_value',
   inngestEvent: 'inngest_event_key_value',
 };
@@ -30,7 +29,6 @@ const validEnv: Record<string, string> = {
   R2_BUCKET: 'omniassist-kb',
   PINECONE_API_KEY: SECRET_VALUES.pineconeKey,
   PINECONE_INDEX: 'omniassist-kb',
-  OPENAI_API_KEY: SECRET_VALUES.openaiKey,
   INNGEST_SIGNING_KEY: SECRET_VALUES.inngestSigning,
   INNGEST_EVENT_KEY: SECRET_VALUES.inngestEvent,
 };
@@ -83,11 +81,11 @@ describe('fail-fast configuration', { timeout: 20_000 }, () => {
     expectNoSecrets(output);
   });
 
-  it('refuses to start without OPENAI_API_KEY', () => {
-    const { status, stderr, output } = startApi({ ...validEnv, OPENAI_API_KEY: undefined });
+  it('refuses to start without PINECONE_API_KEY', () => {
+    const { status, stderr, output } = startApi({ ...validEnv, PINECONE_API_KEY: undefined });
 
     expect(status).not.toBe(0);
-    expect(stderr).toContain('OPENAI_API_KEY');
+    expect(stderr).toContain('PINECONE_API_KEY');
     expectNoSecrets(output);
   });
 });

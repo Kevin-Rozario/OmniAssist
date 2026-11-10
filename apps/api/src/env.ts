@@ -37,8 +37,6 @@ export const env = createEnv({
     PINECONE_API_KEY: z.string().min(1),
     PINECONE_INDEX: z.string().min(1),
 
-    OPENAI_API_KEY: z.string().min(1),
-
     INNGEST_SIGNING_KEY: z.string().min(1),
     INNGEST_EVENT_KEY: z.string().min(1),
 

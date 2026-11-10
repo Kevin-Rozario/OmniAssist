@@ -1,16 +1,12 @@
-import type { EmbeddingClient, VectorStore } from '@omni/rag-core';
+import type { VectorStore } from '@omni/rag-core';
 import type { Env } from '../env';
 import type { ObjectStore } from './object-store';
-import {
-  createOpenAiEmbeddingsFromApiKey,
-  createSdkPineconeVectorStore,
-} from '@omni/rag-core';
+import { createSdkPineconeVectorStore } from '@omni/rag-core';
 import { createObjectStore, createR2ObjectStoreClient } from './object-store';
 
 export interface KbDeps {
   objectStore: ObjectStore;
   vectorStore: VectorStore;
-  embeddings: EmbeddingClient;
   maxUploadBytes: number;
 }
 
@@ -30,7 +26,6 @@ export function createKbDeps(env: Env): KbDeps {
       apiKey: env.PINECONE_API_KEY,
       indexName: env.PINECONE_INDEX,
     }),
-    embeddings: createOpenAiEmbeddingsFromApiKey(env.OPENAI_API_KEY),
     maxUploadBytes: env.KB_MAX_UPLOAD_BYTES,
   };
 }

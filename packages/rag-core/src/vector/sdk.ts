@@ -7,16 +7,27 @@ export interface SdkPineconeVectorStoreOptions {
   indexName: string;
 }
 
-/** Production VectorStore backed by the Pinecone SDK. */
+/**
+ * Production VectorStore for the document index.
+ * Pinecone embeds `chunk_text`; this client sends plain text.
+ * Writes go to the default namespace.
+ */
 export function createSdkPineconeVectorStore(
   options: SdkPineconeVectorStoreOptions,
 ): VectorStore {
-  const index = new Pinecone({ apiKey: options.apiKey }).index(options.indexName);
+  const index = new Pinecone({ apiKey: options.apiKey }).index({
+    name: options.indexName,
+  });
+
   return createPineconeVectorStore({
     index: {
-      upsert: records => index.upsert(records),
-      deleteMany: ids => index.deleteMany(ids),
-      listPaginated: opts => index.listPaginated(opts),
+      upsert: async (documents) => {
+        await index.documents.upsert({ documents });
+      },
+      deleteMany: async (ids) => {
+        await index.documents.delete({ ids });
+      },
+      listPage: opts => index.documents.list(opts),
     },
   });
 }

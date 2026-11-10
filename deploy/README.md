@@ -66,7 +66,7 @@ cd OmniAssist/deploy
 cp api.env.example api.env
 ```
 
-Edit `api.env`: Neon pooled URL, the production Clerk keys, `WEB_ORIGINS=https://omniassist.kevinrozario.com`, and the knowledge-base variables from `api.env.example` (R2, Pinecone, OpenAI, Inngest).
+Edit `api.env`: Neon pooled URL, the production Clerk keys, `WEB_ORIGINS=https://omniassist.kevinrozario.com`, and the knowledge-base variables from `api.env.example` (R2, Pinecone, Inngest).
 
 The GHCR package is private even though the repository is public. Log in once with a GitHub personal access token that has `read:packages`. The password is that token, not the GitHub account password. Docker stores it in `~/.docker/config.json`. Do not put the token in `api.env`.
 
@@ -130,8 +130,7 @@ Document upload and ingestion need services that are not covered by `/ready` (th
 | Service       | What to create                                                               | Env vars in `api.env`                                                                            |
 | ------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | Cloudflare R2 | Private bucket + S3 API token (Object Read & Write)                          | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, optional `R2_ENDPOINT` |
-| Pinecone      | Serverless index, **1536** dimensions, **cosine** metric                     | `PINECONE_API_KEY`, `PINECONE_INDEX`                                                             |
-| OpenAI        | API key for `text-embedding-3-small` embeddings                              | `OPENAI_API_KEY`                                                                                 |
+| Pinecone      | Document index `omniassist-kb`: `chunk_text` embedded with `text-embedding-3-small` (1536, cosine, English full-text) and `title` English full-text | `PINECONE_API_KEY`, `PINECONE_INDEX`                                                             |
 | Inngest Cloud | App whose serve URL is `https://api.omniassist.kevinrozario.com/api/inngest` | `INNGEST_SIGNING_KEY`, `INNGEST_EVENT_KEY`                                                       |
 | Upload cap    | Optional override (default 10 MiB)                                           | `KB_MAX_UPLOAD_BYTES`                                                                            |
 

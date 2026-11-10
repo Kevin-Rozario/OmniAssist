@@ -17,6 +17,12 @@ export function createIngestDocumentFunction(
         { event: DOCUMENT_UPLOADED_EVENT },
       ],
       retries: 3,
+      // One run per document so a newer generation cannot upsert while an older
+      // run is still writing. The older run finishes, including its cleanup delete.
+      concurrency: {
+        limit: 1,
+        key: 'event.data.documentId',
+      },
       onFailure: async ({ event, error }) => {
         const original = event.data.event;
         const data = original?.data as { documentId?: string; generation?: number } | undefined;

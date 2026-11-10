@@ -150,7 +150,7 @@ export function createDocumentsService(options: DocumentsServiceOptions): Docume
         await vectorStore.deleteByDocumentId(id);
       }
       catch (error) {
-        throw new UpstreamError('Could not delete document vectors.', { cause: error });
+        throw new UpstreamError('Could not delete indexed document chunks.', { cause: error });
       }
 
       await repo.delete(id);
@@ -159,7 +159,7 @@ export function createDocumentsService(options: DocumentsServiceOptions): Docume
         await objectStore.delete(bumped.storageKey);
       }
       catch (error) {
-        // Best-effort object cleanup; DB + vectors already removed.
+        // Best-effort object cleanup; the DB row and index chunks are already removed.
         void error;
       }
     },
