@@ -66,7 +66,7 @@ cd OmniAssist/deploy
 cp api.env.example api.env
 ```
 
-Edit `api.env`: Neon pooled URL, the production Clerk keys, and `WEB_ORIGINS=https://omniassist.kevinrozario.com`.
+Edit `api.env`: Neon pooled URL, the production Clerk keys, `WEB_ORIGINS=https://omniassist.kevinrozario.com`, and the knowledge-base variables from `api.env.example` (R2, Pinecone, OpenAI, Inngest).
 
 The GHCR package is private even though the repository is public. Log in once with a GitHub personal access token that has `read:packages`. The password is that token, not the GitHub account password. Docker stores it in `~/.docker/config.json`. Do not put the token in `api.env`.
 
@@ -123,6 +123,28 @@ IMAGE_TAG=<previous-commit-sha> docker compose up -d
 
 The API container is limited to 512 MB. Raise `mem_limit` in `compose.yml` if the kernel OOM-kills it. Certificates stay with the host Caddy, not in a Compose volume.
 
+## Knowledge base and Inngest
+
+Document upload and ingestion need services that are not covered by `/ready` (that probe stays Postgres-only). Provision them before admins use the Knowledge Base page:
+
+| Service | What to create | Env vars in `api.env` |
+| --- | --- | --- |
+| Cloudflare R2 | Private bucket + S3 API token (Object Read & Write) | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, optional `R2_ENDPOINT` |
+| Pinecone | Serverless index, **1536** dimensions, **cosine** metric | `PINECONE_API_KEY`, `PINECONE_INDEX` |
+| OpenAI | API key for `text-embedding-3-small` embeddings | `OPENAI_API_KEY` |
+| Inngest Cloud | App whose serve URL is `https://api.omniassist.kevinrozario.com/api/inngest` | `INNGEST_SIGNING_KEY`, `INNGEST_EVENT_KEY` |
+| Upload cap | Optional override (default 10 MiB) | `KB_MAX_UPLOAD_BYTES` |
+
+After the API container is up with Inngest keys, open the Inngest dashboard and sync/register the app so `kb/ingest-document` is listed. Until sync succeeds, uploads create `pending` rows but ingestion jobs will not run. Recreate the container after editing these vars (`docker compose up -d --force-recreate`).
+
+Local seed of the Omni Corp Markdown corpus (dev only, not for production CI):
+
+```sh
+pnpm seed-kb --help
+pnpm seed-kb --dry-run
+SEED_BEARER_TOKEN=<admin-clerk-jwt> SEED_API_URL=http://127.0.0.1:3000 pnpm seed-kb
+```
+
 ## Checks
 
 ```sh
@@ -131,7 +153,7 @@ curl -fsS https://api.omniassist.kevinrozario.com/ready
 curl -fsSI https://api.omniassist.kevinrozario.com/docs
 ```
 
-`/health` returns `{"status":"ok"}` and does not touch the database. `/ready` returns `{"status":"ok","checks":{"database":"ok"}}` only when `select 1` succeeds. `/docs` returns HTTP 200 with `content-type: text/html` and a `via: 1.1 Caddy` header.
+`/health` returns `{"status":"ok"}` and does not touch the database. `/ready` returns `{"status":"ok","checks":{"database":"ok"}}` only when `select 1` succeeds. `/docs` returns HTTP 200 with `content-type: text/html` and a `via: 1.1 Caddy` header. `/api/inngest` is the Inngest serve path (authenticated by Inngest signing key, not Clerk).
 
 Logs:
 
