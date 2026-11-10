@@ -1,0 +1,24 @@
+{
+  "name": "@omni/config",
+  "type": "module",
+  "version": "0.0.0",
+  "private": true,
+  "exports": {
+    "./tsconfig/base.json": "./base.json",
+    "./tsconfig/library.json": "./library.json",
+    "./tsconfig/node.json": "./node.json",
+    "./tsconfig/nextjs.json": "./nextjs.json",
+    "./vitest-preset": "./vitest.preset.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "peerDependencies": {
+    "vitest": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "vitest": "^5.1.0"
+  }
+}
