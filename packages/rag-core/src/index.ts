@@ -17,3 +17,7 @@ export {
   type PineconeRecord,
   type PineconeVectorStoreOptions,
 } from './vector/pinecone';
+export {
+  createSdkPineconeVectorStore,
+  type SdkPineconeVectorStoreOptions,
+} from './vector/sdk';
