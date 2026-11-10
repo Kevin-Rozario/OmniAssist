@@ -1,3 +1,9 @@
+export {
+  createRagGraph,
+  type RagGraph,
+  type RagGraphOptions,
+} from './graph';
+export type { RagLogger } from './nodes/deps';
 export { policy, type RagPolicy } from './policy';
 export type {
   AskEvent,
@@ -25,3 +31,4 @@ export {
   type Prompt,
   type PromptSource,
 } from './prompts';
+export type { AcceptedSource, RagStateType, Verdict } from './state';
