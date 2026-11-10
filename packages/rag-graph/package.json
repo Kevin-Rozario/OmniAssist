@@ -1,0 +1,24 @@
+{
+  "name": "@omni/rag-graph",
+  "type": "module",
+  "version": "0.0.0",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@langchain/core": "1.3.7",
+    "@langchain/langgraph": "1.7.3",
+    "@omni/types": "workspace:*"
+  },
+  "devDependencies": {
+    "@omni/config": "workspace:*",
+    "@types/node": "^24.0.0",
+    "vitest": "^5.1.0"
+  }
+}

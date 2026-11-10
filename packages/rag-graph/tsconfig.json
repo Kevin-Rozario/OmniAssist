@@ -1,0 +1,4 @@
+{
+  "extends": "@omni/config/tsconfig/library.json",
+  "include": ["src", "*.config.ts"]
+}
