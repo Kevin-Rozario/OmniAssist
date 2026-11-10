@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { MeResponseSchema, ProblemDetailsSchema, RoleSchema } from './index';
+import {
+  DocumentDetailSchema,
+  DocumentListResponseSchema,
+  DocumentStatusSchema,
+  DocumentSummarySchema,
+  DocumentUploadErrorSchema,
+  MeResponseSchema,
+  ProblemDetailsSchema,
+  RoleSchema,
+} from './index';
 
 describe('problemDetailsSchema', () => {
   const base = {
@@ -79,5 +88,120 @@ describe('meResponseSchema', () => {
   it('rejects an invalid email and an unknown role', () => {
     expect(MeResponseSchema.safeParse({ ...me, primaryEmail: 'nope' }).success).toBe(false);
     expect(MeResponseSchema.safeParse({ ...me, role: 'root' }).success).toBe(false);
+  });
+});
+
+describe('documentStatusSchema', () => {
+  it('accepts the four lifecycle statuses', () => {
+    for (const status of [
+      'pending',
+      'processing',
+      'ready',
+      'failed',
+    ] as const)
+      expect(DocumentStatusSchema.parse(status)).toBe(status);
+  });
+
+  it('rejects invalid status values', () => {
+    expect(DocumentStatusSchema.safeParse('queued').success).toBe(false);
+    expect(DocumentStatusSchema.safeParse('').success).toBe(false);
+  });
+});
+
+describe('documentSummarySchema', () => {
+  const summary = {
+    id: '019a1b2c-3d4e-7f80-9abc-def012345678',
+    filename: 'vpn-guide.md',
+    contentType: 'text/markdown',
+    byteSize: 2048,
+    status: 'pending',
+    createdAt: '2026-11-10T12:00:00.000Z',
+    errorSummary: null,
+    chunkCount: null,
+  };
+
+  it('parses a pending summary', () => {
+    expect(DocumentSummarySchema.parse(summary)).toEqual(summary);
+  });
+
+  it('parses a failed summary with an error', () => {
+    expect(DocumentSummarySchema.parse({
+      ...summary,
+      status: 'failed',
+      errorSummary: 'No extractable text',
+    }).errorSummary).toBe('No extractable text');
+  });
+
+  it('rejects an invalid status and a non-uuid id', () => {
+    expect(DocumentSummarySchema.safeParse({ ...summary, status: 'queued' }).success).toBe(false);
+    expect(DocumentSummarySchema.safeParse({ ...summary, id: 'not-a-uuid' }).success).toBe(false);
+  });
+});
+
+describe('documentDetailSchema', () => {
+  const detail = {
+    id: '019a1b2c-3d4e-7f80-9abc-def012345678',
+    filename: 'vpn-guide.md',
+    contentType: 'text/markdown',
+    byteSize: 2048,
+    status: 'ready',
+    createdAt: '2026-11-10T12:00:00.000Z',
+    updatedAt: '2026-11-10T12:05:00.000Z',
+    errorSummary: null,
+    chunkCount: 3,
+    uploadedBy: 'user_admin',
+    contentHash: 'a'.repeat(64),
+  };
+
+  it('parses a ready detail', () => {
+    expect(DocumentDetailSchema.parse(detail)).toEqual(detail);
+  });
+
+  it('rejects a missing content hash', () => {
+    const { contentHash: _, ...rest } = detail;
+    expect(DocumentDetailSchema.safeParse(rest).success).toBe(false);
+  });
+});
+
+describe('documentListResponseSchema', () => {
+  it('parses a list of summaries', () => {
+    const list = {
+      documents: [
+        {
+          id: '019a1b2c-3d4e-7f80-9abc-def012345678',
+          filename: 'a.md',
+          contentType: 'text/markdown',
+          byteSize: 1,
+          status: 'ready',
+          createdAt: '2026-11-10T12:00:00.000Z',
+          errorSummary: null,
+          chunkCount: 1,
+        },
+      ],
+    };
+    expect(DocumentListResponseSchema.parse(list).documents).toHaveLength(1);
+  });
+});
+
+describe('documentUploadErrorSchema', () => {
+  it('parses unsupported_format and oversized shapes', () => {
+    expect(DocumentUploadErrorSchema.parse({
+      reason: 'unsupported_format',
+      message: 'Format is not supported',
+      contentType: 'application/vnd.ms-excel',
+    }).reason).toBe('unsupported_format');
+
+    expect(DocumentUploadErrorSchema.parse({
+      reason: 'oversized',
+      message: 'File exceeds the size limit',
+      maxBytes: 10_485_760,
+    }).maxBytes).toBe(10_485_760);
+  });
+
+  it('rejects an unknown reason', () => {
+    expect(DocumentUploadErrorSchema.safeParse({
+      reason: 'virus',
+      message: 'nope',
+    }).success).toBe(false);
   });
 });
