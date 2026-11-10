@@ -2,6 +2,7 @@ import type { AuthVerifier } from './lib/auth';
 import type { Logger } from './lib/logger';
 import type { DocumentsService } from './modules/documents/service';
 import type { DatabasePing } from './modules/health/service';
+import type { InngestHttpHandler } from './modules/inngest/routes';
 import type { MeService } from './modules/me/service';
 import { Scalar } from '@scalar/hono-api-reference';
 import { cors } from 'hono/cors';
@@ -21,6 +22,8 @@ export interface AppDeps {
   documentsService: DocumentsService;
   pingDatabase: DatabasePing;
   readinessTimeoutMs?: number;
+  /** Background-jobs serve path; outside `/v1`, no Clerk session required. */
+  inngestHandler?: InngestHttpHandler;
 }
 
 export function createApp(deps: AppDeps) {
@@ -56,6 +59,18 @@ export function createApp(deps: AppDeps) {
     },
   });
   app.get('/docs', Scalar({ url: '/openapi.json', pageTitle: 'OmniAssist AI API' }));
+
+  if (deps.inngestHandler) {
+    app.on(
+      [
+        'GET',
+        'PUT',
+        'POST',
+      ],
+      '/api/inngest',
+      c => deps.inngestHandler!(c),
+    );
+  }
 
   return app
     .route('/', healthRoutes(deps))

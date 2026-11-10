@@ -146,14 +146,17 @@ describe('protected routes', () => {
     expect(await admin.json()).toEqual({ userId: 'user_admin' });
   });
 
-  it('serves health, readiness, the OpenAPI document and the docs UI without a token', async () => {
-    const { app } = buildTestApp();
+  it('serves health, readiness, the OpenAPI document, docs UI and Inngest without a token', async () => {
+    const { app } = buildTestApp({
+      inngestHandler: async c => c.json({ ok: true }, 200),
+    });
 
     for (const path of [
       '/health',
       '/ready',
       '/openapi.json',
       '/docs',
+      '/api/inngest',
     ]) {
       const res = await app.request(path);
       expect(res.status, path).not.toBe(401);
