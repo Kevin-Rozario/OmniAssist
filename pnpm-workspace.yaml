@@ -5,3 +5,7 @@ shellEmulator: true
 packages:
   - apps/*
   - packages/*
+
+onlyBuiltDependencies:
+  - esbuild
+  - simple-git-hooks
