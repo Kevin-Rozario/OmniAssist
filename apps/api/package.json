@@ -23,6 +23,7 @@
     "@omni/db": "workspace:*",
     "@omni/ingestion": "workspace:*",
     "@omni/rag-core": "workspace:*",
+    "@omni/rag-graph": "workspace:*",
     "@omni/types": "workspace:*",
     "@scalar/hono-api-reference": "^0.12.18",
     "@t3-oss/env-core": "^0.13.11",
