@@ -8,6 +8,8 @@ const originList = z
   .pipe(z.array(z.url({ protocol: /^https?$/ })).min(1))
   .transform(origins => origins.map(origin => new URL(origin).origin));
 
+export const DEFAULT_KB_MAX_UPLOAD_BYTES = 10_485_760;
+
 export const env = createEnv({
   server: {
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -25,6 +27,26 @@ export const env = createEnv({
     DATABASE_URL: z.url({ protocol: /^postgres(?:ql)?$/ }),
     CLERK_SECRET_KEY: z.string().startsWith('sk_'),
     CLERK_PUBLISHABLE_KEY: z.string().startsWith('pk_'),
+
+    R2_ACCOUNT_ID: z.string().min(1),
+    R2_ACCESS_KEY_ID: z.string().min(1),
+    R2_SECRET_ACCESS_KEY: z.string().min(1),
+    R2_BUCKET: z.string().min(1),
+    R2_ENDPOINT: z.url({ protocol: /^https?$/ }).optional(),
+
+    PINECONE_API_KEY: z.string().min(1),
+    PINECONE_INDEX: z.string().min(1),
+
+    OPENAI_API_KEY: z.string().min(1),
+
+    INNGEST_SIGNING_KEY: z.string().min(1),
+    INNGEST_EVENT_KEY: z.string().min(1),
+
+    KB_MAX_UPLOAD_BYTES: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(DEFAULT_KB_MAX_UPLOAD_BYTES),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,

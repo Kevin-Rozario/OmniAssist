@@ -9,6 +9,11 @@ const SECRET_VALUES = {
   databasePassword: 'hunter2-db-password',
   secretKey: 'sk_test_super_secret_value',
   publishableKey: 'pk_test_publishable_value',
+  r2Secret: 'r2_secret_access_key_value',
+  pineconeKey: 'pinecone_api_key_value',
+  openaiKey: 'sk-openai_secret_value',
+  inngestSigning: 'signkey-inngest_secret_value',
+  inngestEvent: 'inngest_event_key_value',
 };
 
 const validEnv: Record<string, string> = {
@@ -19,6 +24,15 @@ const validEnv: Record<string, string> = {
   DATABASE_URL: `postgresql://omni:${SECRET_VALUES.databasePassword}@127.0.0.1:1/omni`,
   CLERK_SECRET_KEY: SECRET_VALUES.secretKey,
   CLERK_PUBLISHABLE_KEY: SECRET_VALUES.publishableKey,
+  R2_ACCOUNT_ID: 'test-account',
+  R2_ACCESS_KEY_ID: 'test-access-key',
+  R2_SECRET_ACCESS_KEY: SECRET_VALUES.r2Secret,
+  R2_BUCKET: 'omniassist-kb',
+  PINECONE_API_KEY: SECRET_VALUES.pineconeKey,
+  PINECONE_INDEX: 'omniassist-kb',
+  OPENAI_API_KEY: SECRET_VALUES.openaiKey,
+  INNGEST_SIGNING_KEY: SECRET_VALUES.inngestSigning,
+  INNGEST_EVENT_KEY: SECRET_VALUES.inngestEvent,
 };
 
 function startApi(env: Record<string, string | undefined>) {
@@ -58,6 +72,22 @@ describe('fail-fast configuration', { timeout: 20_000 }, () => {
     expect(status).not.toBe(0);
     expect(stderr).toContain('WEB_ORIGINS');
     expect(output).not.toContain('not-a-url');
+    expectNoSecrets(output);
+  });
+
+  it('refuses to start without R2_BUCKET', () => {
+    const { status, stderr, output } = startApi({ ...validEnv, R2_BUCKET: undefined });
+
+    expect(status).not.toBe(0);
+    expect(stderr).toContain('R2_BUCKET');
+    expectNoSecrets(output);
+  });
+
+  it('refuses to start without OPENAI_API_KEY', () => {
+    const { status, stderr, output } = startApi({ ...validEnv, OPENAI_API_KEY: undefined });
+
+    expect(status).not.toBe(0);
+    expect(stderr).toContain('OPENAI_API_KEY');
     expectNoSecrets(output);
   });
 });
