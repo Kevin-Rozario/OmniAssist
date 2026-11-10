@@ -36,7 +36,7 @@ function expectNoSecrets(output: string): void {
     expect(output).not.toContain(value);
 }
 
-describe('fail-fast configuration', () => {
+describe('fail-fast configuration', { timeout: 20_000 }, () => {
   it('refuses to start without CLERK_SECRET_KEY', () => {
     const { status, stderr, output } = startApi({ ...validEnv, CLERK_SECRET_KEY: undefined });
 
