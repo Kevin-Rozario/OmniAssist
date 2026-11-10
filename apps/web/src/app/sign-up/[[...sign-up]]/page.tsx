@@ -1,5 +1,10 @@
 import { SignUp } from '@clerk/nextjs';
+import { AuthFrame } from '@/components/auth-frame';
 
 export default function SignUpPage() {
-  return <SignUp />;
+  return (
+    <AuthFrame>
+      <SignUp />
+    </AuthFrame>
+  );
 }

@@ -43,6 +43,17 @@ export default antfu(
     ],
     rules: {
       'import/no-default-export': 'off',
+      'react-refresh/only-export-components': [
+        'error',
+        {
+          allowExportNames: [
+            'metadata',
+            'viewport',
+            'generateMetadata',
+            'generateViewport',
+          ],
+        },
+      ],
     },
   },
   {

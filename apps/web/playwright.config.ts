@@ -1,6 +1,13 @@
 import process from 'node:process';
 import { defineConfig, devices } from '@playwright/test';
 
+try {
+  process.loadEnvFile('.env.local');
+}
+catch {
+  // Signed-in tests skip when local Clerk keys are absent.
+}
+
 const port = 3001;
 const baseURL = `http://localhost:${port}`;
 

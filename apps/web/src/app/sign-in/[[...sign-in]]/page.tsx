@@ -1,5 +1,10 @@
 import { SignIn } from '@clerk/nextjs';
+import { AuthFrame } from '@/components/auth-frame';
 
 export default function SignInPage() {
-  return <SignIn />;
+  return (
+    <AuthFrame>
+      <SignIn />
+    </AuthFrame>
+  );
 }
