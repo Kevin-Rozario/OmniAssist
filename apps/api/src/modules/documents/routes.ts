@@ -122,45 +122,41 @@ const reingestDocumentRoute = createRoute({
 
 export function documentsRoutes(service: DocumentsService) {
   const router = createRouter();
-  // Apply before openapi handlers; avoid chaining `.use()` so OpenAPIHono typing is preserved.
+  // Apply before openapi handlers; do not chain `.use()` into the return type
+  // or OpenAPIHono drops route types needed by the Hono RPC client.
   router.use('*', requireRole('admin'));
 
-  router.openapi(listDocumentsRoute, async (c) => {
-    currentSession(c);
-    return c.json(await service.list(), 200);
-  });
-
-  router.openapi(getDocumentRoute, async (c) => {
-    currentSession(c);
-    const { id } = c.req.valid('param');
-    return c.json(await service.get(id), 200);
-  });
-
-  router.openapi(uploadDocumentRoute, async (c) => {
-    const session = currentSession(c);
-    const { file } = c.req.valid('form');
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    const document = await service.create({
-      filename: file.name || 'upload.bin',
-      bytes,
-      uploadedBy: session.userId,
-      declaredContentType: file.type || null,
+  return router
+    .openapi(listDocumentsRoute, async (c) => {
+      currentSession(c);
+      return c.json(await service.list(), 200);
+    })
+    .openapi(getDocumentRoute, async (c) => {
+      currentSession(c);
+      const { id } = c.req.valid('param');
+      return c.json(await service.get(id), 200);
+    })
+    .openapi(uploadDocumentRoute, async (c) => {
+      const session = currentSession(c);
+      const { file } = c.req.valid('form');
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const document = await service.create({
+        filename: file.name || 'upload.bin',
+        bytes,
+        uploadedBy: session.userId,
+        declaredContentType: file.type || null,
+      });
+      return c.json(document, 201);
+    })
+    .openapi(deleteDocumentRoute, async (c) => {
+      currentSession(c);
+      const { id } = c.req.valid('param');
+      await service.delete(id);
+      return c.body(null, 204);
+    })
+    .openapi(reingestDocumentRoute, async (c) => {
+      currentSession(c);
+      const { id } = c.req.valid('param');
+      return c.json(await service.reingest(id), 200);
     });
-    return c.json(document, 201);
-  });
-
-  router.openapi(deleteDocumentRoute, async (c) => {
-    currentSession(c);
-    const { id } = c.req.valid('param');
-    await service.delete(id);
-    return c.body(null, 204);
-  });
-
-  router.openapi(reingestDocumentRoute, async (c) => {
-    currentSession(c);
-    const { id } = c.req.valid('param');
-    return c.json(await service.reingest(id), 200);
-  });
-
-  return router;
 }
