@@ -1,0 +1,1 @@
+Omni Corp VPN quick start: connect with the company client, then open https://intranet.omnicorp.example.

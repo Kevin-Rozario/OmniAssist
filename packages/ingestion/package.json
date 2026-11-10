@@ -1,0 +1,23 @@
+{
+  "name": "@omni/ingestion",
+  "type": "module",
+  "version": "0.0.0",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "mammoth": "^1.13.0",
+    "unpdf": "^2.1.0"
+  },
+  "devDependencies": {
+    "@omni/config": "workspace:*",
+    "@types/node": "^24.0.0",
+    "vitest": "^5.1.0"
+  }
+}
