@@ -13,5 +13,6 @@ test-results
 .DS_Store
 .cursor/
 openspec/
+deploy/api.env
 enterprise_it_support_agentic_rag_copilot_specification.md
 apps/web/AGENTS.md

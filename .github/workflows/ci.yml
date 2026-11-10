@@ -1,0 +1,123 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - production
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TURBO_TELEMETRY_DISABLED: 1
+
+jobs:
+  check:
+    name: Lint, typecheck, test, build
+    runs-on: ubuntu-latest
+    env:
+      # Placeholders satisfy the web build. They are not Clerk credentials.
+      NEXT_PUBLIC_API_URL: https://api.omniassist.kevinrozario.com
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_Y2xlcmsua2V2aW5yb3phcmlvLmNvbSQ
+      CLERK_SECRET_KEY: sk_test_ci_placeholder
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Cache Turborepo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
+
+      - name: Lint, typecheck, test, and build
+        run: pnpm turbo run lint typecheck test build --cache-dir=.turbo
+
+  e2e:
+    name: Playwright
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect web or UI changes
+        id: changes
+        run: |
+          set -eu
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base="${{ github.event.pull_request.base.sha }}"
+          elif [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          else
+            base="${{ github.event.before }}"
+          fi
+          if git cat-file -e "${base}^{commit}" 2>/dev/null \
+            && git diff --name-only "$base" HEAD | grep -Eq '^(apps/web/|packages/ui/)'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          elif git cat-file -e "${base}^{commit}" 2>/dev/null; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup pnpm
+        if: steps.changes.outputs.run == 'true'
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        if: steps.changes.outputs.run == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        if: steps.changes.outputs.run == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Cache Turborepo
+        if: steps.changes.outputs.run == 'true'
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-e2e-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-e2e-
+            ${{ runner.os }}-turbo-
+
+      - name: Install Playwright
+        if: steps.changes.outputs.run == 'true'
+        run: pnpm --filter @omni/web exec playwright install --with-deps chromium
+
+      - name: End-to-end tests
+        if: steps.changes.outputs.run == 'true'
+        env:
+          CI: true
+          NEXT_PUBLIC_API_URL: https://api.omniassist.kevinrozario.com
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          E2E_CLERK_USER_EMAIL: ${{ secrets.E2E_CLERK_USER_EMAIL }}
+        run: pnpm turbo run test:e2e --filter=@omni/web --cache-dir=.turbo
