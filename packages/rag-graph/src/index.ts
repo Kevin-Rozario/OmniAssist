@@ -16,3 +16,12 @@ export type {
   WebResult,
   WebSearch,
 } from './ports';
+export {
+  buildDirectPrompt,
+  buildFallbackPrompt,
+  buildKbAnswerPrompt,
+  buildWebAnswerPrompt,
+  formatSources,
+  type Prompt,
+  type PromptSource,
+} from './prompts';
