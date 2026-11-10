@@ -2,6 +2,7 @@ import type { Page } from '@playwright/test';
 import process from 'node:process';
 import { clerk, clerkSetup } from '@clerk/testing/playwright';
 import { expect, test } from '@playwright/test';
+import { apiUrl } from './api-url';
 
 const adminProfile = {
   userId: 'user_e2e_admin',
@@ -31,13 +32,8 @@ test.describe('signed-in shell', () => {
     }
 
     let failNext = false;
-    await page.route('**/v1/me', async (route) => {
-      const url = new URL(route.request().url());
-      if (!url.hostname.includes('localhost') && !url.hostname.includes('127.0.0.1')) {
-        await route.continue();
-        return;
-      }
-
+    // Clerk's Frontend API also serves `/v1/me`, so match the app API's origin exactly.
+    await page.route(new URL('/v1/me', apiUrl()).href, async (route) => {
       if (failNext) {
         failNext = false;
         await route.fulfill({

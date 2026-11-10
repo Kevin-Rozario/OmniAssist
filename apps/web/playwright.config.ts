@@ -1,5 +1,6 @@
 import process from 'node:process';
 import { defineConfig, devices } from '@playwright/test';
+import { apiUrl } from './e2e/api-url';
 
 try {
   process.loadEnvFile('.env.local');
@@ -15,7 +16,7 @@ const baseURL = `http://localhost:${port}`;
 // Fallbacks are applied only to that process. An empty CLERK_SECRET_KEY in
 // this process still skips the signed-in test.
 const serverEnv = {
-  NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'https://api.omniassist.kevinrozario.com',
+  NEXT_PUBLIC_API_URL: apiUrl(),
   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || 'pk_test_Y2xlcmsua2V2aW5yb3phcmlvLmNvbSQ',
   CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY || 'sk_test_ci_placeholder',
 };
