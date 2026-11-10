@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+  AnswerSourceSchema,
+  AskCitationsEventSchema,
+  AskDoneEventSchema,
+  AskErrorEventSchema,
+  AskEventSchemas,
+  AskRequestSchema,
+  AskStatusEventSchema,
+  AskTokenEventSchema,
   DocumentDetailSchema,
   DocumentListResponseSchema,
   DocumentStatusSchema,
@@ -8,6 +16,8 @@ import {
   MeResponseSchema,
   ProblemDetailsSchema,
   RoleSchema,
+  sourceConfidenceFor,
+  SourceConfidenceSchema,
 } from './index';
 
 describe('problemDetailsSchema', () => {
@@ -203,5 +213,153 @@ describe('documentUploadErrorSchema', () => {
       reason: 'virus',
       message: 'nope',
     }).success).toBe(false);
+  });
+});
+
+describe('askRequestSchema', () => {
+  it('accepts a question and trims it', () => {
+    expect(AskRequestSchema.parse({ question: '  How do I set up a VPN?  ' }).question)
+      .toBe('How do I set up a VPN?');
+  });
+
+  it('accepts a 2000-character question', () => {
+    expect(AskRequestSchema.safeParse({
+      question: 'a'.repeat(2000),
+    }).success).toBe(true);
+  });
+
+  it('rejects empty and whitespace-only questions', () => {
+    expect(AskRequestSchema.safeParse({ question: '' }).success).toBe(false);
+    expect(AskRequestSchema.safeParse({ question: '   \n\t ' }).success).toBe(false);
+  });
+
+  it('rejects a 2001-character question', () => {
+    expect(AskRequestSchema.safeParse({
+      question: 'a'.repeat(2001),
+    }).success).toBe(false);
+  });
+
+  it('rejects a missing or non-string question', () => {
+    expect(AskRequestSchema.safeParse({}).success).toBe(false);
+    expect(AskRequestSchema.safeParse({ question: 42 }).success).toBe(false);
+  });
+
+  it('names the question field in the failure', () => {
+    const result = AskRequestSchema.safeParse({ question: ' ' });
+    expect(result.success
+      ? []
+      : result.error.issues.map(i => i.path[0])).toContain('question');
+  });
+});
+
+describe('answer source and confidence', () => {
+  it('maps each answer source to its confidence', () => {
+    expect(sourceConfidenceFor('kb')).toBe('high');
+    expect(sourceConfidenceFor('web')).toBe('medium');
+    expect(sourceConfidenceFor('fallback')).toBe('low');
+    expect(sourceConfidenceFor('direct')).toBe('not_applicable');
+  });
+
+  it('only produces valid confidence values', () => {
+    for (const source of AnswerSourceSchema.options)
+      expect(SourceConfidenceSchema.safeParse(sourceConfidenceFor(source)).success).toBe(true);
+  });
+
+  it('rejects unknown values', () => {
+    expect(AnswerSourceSchema.safeParse('cache').success).toBe(false);
+    expect(SourceConfidenceSchema.safeParse('certain').success).toBe(false);
+  });
+});
+
+describe('ask event payload schemas', () => {
+  it('parses every status stage and rejects others', () => {
+    for (const stage of [
+      'routing',
+      'searching_kb',
+      'grading',
+      'searching_web',
+      'writing',
+    ])
+      expect(AskStatusEventSchema.parse({ stage }).stage).toBe(stage);
+    expect(AskStatusEventSchema.safeParse({ stage: 'thinking' }).success).toBe(false);
+  });
+
+  it('parses kb and web citations', () => {
+    const sources = [
+      {
+        n: 1,
+        kind: 'kb',
+        documentId: 'doc-1',
+        filename: 'vpn-guide.md',
+      },
+      {
+        n: 2,
+        kind: 'web',
+        title: 'VPN setup',
+        url: 'https://example.com/vpn',
+      },
+    ];
+    expect(AskCitationsEventSchema.parse({ sources }).sources).toEqual(sources);
+  });
+
+  it('rejects malformed citations', () => {
+    expect(AskCitationsEventSchema.safeParse({
+      sources: [
+        {
+          n: 0,
+          kind: 'kb',
+          documentId: 'd',
+          filename: 'f',
+        },
+      ],
+    }).success).toBe(false);
+    expect(AskCitationsEventSchema.safeParse({
+      sources: [
+        {
+          n: 1,
+          kind: 'web',
+          title: 't',
+          url: 'not a url',
+        },
+      ],
+    }).success).toBe(false);
+    expect(AskCitationsEventSchema.safeParse({
+      sources: [
+        {
+          n: 1,
+          kind: 'kb',
+          title: 't',
+          url: 'https://example.com',
+        },
+      ],
+    }).success).toBe(false);
+  });
+
+  it('parses token and done payloads', () => {
+    expect(AskTokenEventSchema.parse({ text: 'Hello' }).text).toBe('Hello');
+    expect(AskDoneEventSchema.parse({ answerSource: 'web', sourceConfidence: 'medium' }))
+      .toEqual({ answerSource: 'web', sourceConfidence: 'medium' });
+    expect(AskDoneEventSchema.safeParse({ answerSource: 'web' }).success).toBe(false);
+  });
+
+  it('parses a sanitized error payload and requires a request ID', () => {
+    const error = {
+      type: 'https://omni-it-copilot.dev/problems/upstream',
+      title: 'Upstream failure',
+      requestId: 'req-1',
+    };
+    expect(AskErrorEventSchema.parse(error)).toEqual(error);
+    const { requestId: _, ...rest } = error;
+    expect(AskErrorEventSchema.safeParse(rest).success).toBe(false);
+  });
+
+  it('exposes a schema for each of the five event names', () => {
+    expect(Object.keys(AskEventSchemas).sort()).toEqual([
+      'citations',
+      'done',
+      'error',
+      'status',
+      'token',
+    ]);
   });
 });
