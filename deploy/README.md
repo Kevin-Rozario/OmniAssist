@@ -1,17 +1,27 @@
 # Delivery
 
-The web app is hosted on Vercel. The API image is published to GHCR and run on the VPS behind Caddy. This directory is the VPS bundle. Nothing here is applied automatically.
+The web app is hosted on Vercel. The API image is published to GHCR and run on the VPS behind the Caddy that is already installed on the host. This directory is the VPS bundle. Nothing here is applied automatically.
+
+| File | Purpose |
+| --- | --- |
+| `compose.yml` | API container, published only on `127.0.0.1:3000` |
+| `Caddyfile` | Host Caddy config: existing site plus the API host |
+| `api.env.example` | Template for the API environment |
+| `README.md` | This runbook |
+
+`api.env` is created on the server from the example. It is gitignored. Do not commit it.
 
 ## Hostnames
 
-`kevinrozario.com` is shared. Each product owns a subdomain. This product is `omniassist`. Its API is a host under that name, so another product can use the same shape (`other.kevinrozario.com`, `api.other.kevinrozario.com`).
+`kevinrozario.com` is the existing site. Each product owns a subdomain. This product is `omniassist`. Its API is a host under that name, so another product can use the same shape (`other.kevinrozario.com`, `api.other.kevinrozario.com`).
 
-| Surface | Hostname                         | Where it runs               |
-| ------- | -------------------------------- | --------------------------- |
-| Web     | `omniassist.kevinrozario.com`    | Vercel, public HTTPS on 443 |
-| API     | `api.omniassist.kevinrozario.com` | VPS, Caddy on 80 and 443    |
+| Surface | Hostname | Where it runs |
+| --- | --- | --- |
+| Web | `omniassist.kevinrozario.com` | Vercel, public HTTPS on 443 |
+| API | `api.omniassist.kevinrozario.com` | VPS, host Caddy on 80 and 443 |
+| Clerk | `clerk.omniassist.kevinrozario.com` | Clerk, for this secondary application |
 
-The browser calls the API directly. `WEB_ORIGINS` is a list of exact origins and does not accept wildcards.
+The browser calls the API directly. `WEB_ORIGINS` is a comma-separated list of exact origins and does not accept wildcards.
 
 ## Ports
 
@@ -23,7 +33,7 @@ The browser calls the API directly. `WEB_ORIGINS` is a list of exact origins and
 
 Local development stays API `3000` and web `3001`.
 
-There is no `ACME_EMAIL` variable. The Caddy installed at `/etc/caddy` already has a certificate account. Compose does not run Caddy.
+There is no `ACME_EMAIL` variable. The Caddy installed at `/etc/caddy` already has a certificate account. Compose does not run Caddy and does not bind 80 or 443.
 
 ## DNS
 
@@ -31,8 +41,20 @@ At the DNS host for `kevinrozario.com`:
 
 - `api.omniassist` — A record to the VPS public IPv4. Add an AAAA record when the VPS has IPv6.
 - `omniassist` — CNAME to `cname.vercel-dns.com` after the domain is added in the Vercel project.
+- Clerk — every record shown on the Clerk Domains page for this secondary application. Those names sit under `omniassist.kevinrozario.com`, including `clerk.omniassist`. Verification mail is sent from `@omniassist.kevinrozario.com`.
 
-The new API name gets its certificate when Caddy reloads, so `api.omniassist` must resolve to this VPS first.
+The API name gets its certificate when Caddy reloads, so `api.omniassist` must resolve to this VPS first.
+
+## Clerk
+
+This product is a secondary Clerk application. Users open `omniassist.kevinrozario.com`. Clerk's API stays on `clerk.omniassist.kevinrozario.com`.
+
+Use the production keys (`pk_live_…` and `sk_live_…`) from that same application in both places:
+
+- `deploy/api.env` on the VPS (`CLERK_SECRET_KEY` and `CLERK_PUBLISHABLE_KEY`)
+- the Vercel project (`CLERK_SECRET_KEY` and `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`)
+
+In the Clerk dashboard, allow `https://omniassist.kevinrozario.com` and each Vercel preview origin that should sign in.
 
 ## First boot
 
@@ -44,18 +66,18 @@ cd OmniAssist/deploy
 cp api.env.example api.env
 ```
 
-Edit `api.env`: Neon pooled URL, Clerk keys, and `WEB_ORIGINS`. `api.env` is gitignored.
+Edit `api.env`: Neon pooled URL, the production Clerk keys, and `WEB_ORIGINS=https://omniassist.kevinrozario.com`.
 
-Log in once if the GHCR package is private. The token needs `read:packages`:
+The GHCR package is private even though the repository is public. Log in once with a GitHub personal access token that has `read:packages`. The password is that token, not the GitHub account password. Docker stores it in `~/.docker/config.json`. Do not put the token in `api.env`.
 
 ```sh
-echo "$GHCR_TOKEN" | docker login ghcr.io -u kevin-rozario --password-stdin
+docker login ghcr.io -u kevin-rozario
 docker compose pull
 docker compose up -d
 curl -fsS http://127.0.0.1:3000/health
 ```
 
-The local curl must succeed before Caddy changes. Then install the Caddyfile. It keeps `kevinrozario.com` and adds the API host:
+The local curl must succeed before Caddy changes. Then install the Caddyfile. It keeps `kevinrozario.com` and `www.kevinrozario.com` serving `/var/www/html`, and adds the API host:
 
 ```sh
 sudo cp /etc/caddy/Caddyfile /etc/caddy/Caddyfile.bak
@@ -66,7 +88,7 @@ sudo systemctl reload caddy
 
 ## Later releases
 
-From `~/OmniAssist`:
+From `~/OmniAssist` on the `production` branch:
 
 ```sh
 git pull
@@ -109,7 +131,7 @@ curl -fsS https://api.omniassist.kevinrozario.com/ready
 curl -fsSI https://api.omniassist.kevinrozario.com/docs
 ```
 
-`/health` is liveness and does not touch the database. `/ready` returns 200 only when `select 1` succeeds. `/docs` should answer over HTTPS with a certificate for `api.omniassist.kevinrozario.com`.
+`/health` returns `{"status":"ok"}` and does not touch the database. `/ready` returns `{"status":"ok","checks":{"database":"ok"}}` only when `select 1` succeeds. `/docs` returns HTTP 200 with `content-type: text/html` and a `via: 1.1 Caddy` header.
 
 Logs:
 
@@ -119,47 +141,49 @@ docker compose logs -f api
 
 ## GitHub
 
-`main` is the integration branch. `production` is the release branch. CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `main` and `production`. It installs with pnpm, restores the Turborepo cache from GitHub Actions cache, then runs `turbo run lint typecheck test build`. Playwright runs only when a push or pull request changes `apps/web/**` or `packages/ui/**`.
+`main` is the integration branch. `production` is the release branch. The VPS clone tracks `production`.
+
+CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `main` and `production`. It installs with pnpm, restores the Turborepo cache from GitHub Actions cache, then runs `turbo run lint typecheck test build`. Playwright runs only when a push or pull request changes `apps/web/**` or `packages/ui/**`.
 
 Repository secrets, all optional:
 
-| Secret                              | Effect when absent                                                                                                                     |
-| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Secret | Effect when absent |
+| --- | --- |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | The signed-out Playwright page still boots with a placeholder key. The Clerk widget may not render, so the sign-in assertion can fail. |
-| `CLERK_SECRET_KEY`                  | The signed-in Playwright test is skipped.                                                                                              |
-| `E2E_CLERK_USER_EMAIL`              | The signed-in test looks up the admin user itself when this is unset and the secret is present.                                        |
+| `CLERK_SECRET_KEY` | The signed-in Playwright test is skipped. |
+| `E2E_CLERK_USER_EMAIL` | The signed-in test looks up the admin user itself when this is unset and the secret is present. |
 
 `.github/workflows/api-image.yml` runs only on pushes to `production`. It pushes `ghcr.io/kevin-rozario/omniassist-api:<commit-sha>` and `:latest`. A push to `main` does not publish an image.
 
 ## Vercel
 
-Create one project from this repository. Do not add `vercel.json`; set the project in the dashboard.
+Create one project from `Kevin-Rozario/OmniAssist`. Do not add `vercel.json`. Set the project in the dashboard.
 
-| Setting           | Value                                                 |
-| ----------------- | ----------------------------------------------------- |
-| Root Directory    | `apps/web`                                            |
-| Framework         | Next.js                                               |
-| Install Command   | `cd ../.. && pnpm install --frozen-lockfile`          |
-| Build Command     | `cd ../.. && pnpm turbo run build --filter=@omni/web` |
-| Production domain | `omniassist.kevinrozario.com`                                |
+| Setting | Value |
+| --- | --- |
+| Production Branch | `production` |
+| Node.js Version | `24.x` |
+| Root Directory | `apps/web` |
+| Framework | Next.js |
+| Install Command | `cd ../.. && pnpm install --frozen-lockfile` |
+| Build Command | `cd ../.. && pnpm turbo run build --filter=@omni/web` |
+| Production domain | `omniassist.kevinrozario.com` |
 
-Set these for Production, Preview, and Development:
+Set these for Production. Use the production Clerk keys from the secondary application. For a Preview deployment, use the matching Clerk instance: development keys unless that preview is meant to use production.
 
-| Variable                                          | Production                          | Preview                                                               |
-| ------------------------------------------------- | ----------------------------------- | --------------------------------------------------------------------- |
-| `NEXT_PUBLIC_API_URL`                             | `https://api.omniassist.kevinrozario.com` | `https://api.omniassist.kevinrozario.com`                                   |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`               | Clerk production publishable key    | Clerk development publishable key, unless the preview uses production |
-| `CLERK_SECRET_KEY`                                | Clerk production secret             | Matching Clerk secret                                                 |
-| `NEXT_PUBLIC_CLERK_SIGN_IN_URL`                   | `/sign-in`                          | `/sign-in`                                                            |
-| `NEXT_PUBLIC_CLERK_SIGN_UP_URL`                   | `/sign-up`                          | `/sign-up`                                                            |
-| `NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL` | `/`                                 | `/`                                                                   |
-| `NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL` | `/`                                 | `/`                                                                   |
+| Variable | Production value |
+| --- | --- |
+| `NEXT_PUBLIC_API_URL` | `https://api.omniassist.kevinrozario.com` |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | `pk_live_…` |
+| `CLERK_SECRET_KEY` | `sk_live_…` |
+| `NEXT_PUBLIC_CLERK_SIGN_IN_URL` | `/sign-in` |
+| `NEXT_PUBLIC_CLERK_SIGN_UP_URL` | `/sign-up` |
+| `NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL` | `/` |
+| `NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL` | `/` |
 
-In the Clerk dashboard, allow `https://omniassist.kevinrozario.com` and the Vercel preview origins you actually use.
+After the first production deployment, open `https://omniassist.kevinrozario.com`. A signed-out visit redirects to `/sign-in`.
 
-After the first production deployment, confirm a signed-out visit to `https://omniassist.kevinrozario.com` redirects to `/sign-in`.
-
-Add origins to `deploy/api.env` and recreate the API container:
+`WEB_ORIGINS` in `deploy/api.env` must include every browser origin that calls the API. Recreate the container after editing it. Include:
 
 - `https://omniassist.kevinrozario.com`
 - the production `*.vercel.app` origin, if visitors still use it
