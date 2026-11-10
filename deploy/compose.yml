@@ -1,0 +1,12 @@
+name: omni
+
+services:
+  api:
+    image: ghcr.io/kevin-rozario/omniassist-api:${IMAGE_TAG:-latest}
+    pull_policy: always
+    restart: unless-stopped
+    env_file:
+      - ./api.env
+    mem_limit: 512m
+    ports:
+      - '127.0.0.1:3000:3000'

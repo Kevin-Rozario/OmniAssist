@@ -15,13 +15,15 @@ The browser calls the API directly. `WEB_ORIGINS` is a list of exact origins and
 
 ## Ports
 
-| Process       | Port       | Published                                 |
-| ------------- | ---------- | ----------------------------------------- |
-| Vercel (web)  | 443        | Yes, by Vercel                            |
-| Caddy         | 80 and 443 | Yes, on the VPS                           |
-| API container | 3000       | No. Only the Compose network can reach it |
+| Process | Port | Published |
+| --- | --- | --- |
+| Caddy already on the VPS | 80 and 443 | Yes. Do not start another Caddy |
+| API container | 3000 | Only on `127.0.0.1`, so the host Caddy can reach it |
+| Vercel (web) | 443 | Yes, by Vercel |
 
 Local development stays API `3000` and web `3001`.
+
+There is no `ACME_EMAIL` variable. The Caddy installed at `/etc/caddy` already has a certificate account. Compose does not run Caddy.
 
 ## DNS
 
@@ -30,32 +32,45 @@ At the DNS host for `kevinrozario.com`:
 - `api.omniassist` — A record to the VPS public IPv4. Add an AAAA record when the VPS has IPv6.
 - `omniassist` — CNAME to `cname.vercel-dns.com` after the domain is added in the Vercel project.
 
-Caddy obtains the API certificate over HTTP-01, so ports 80 and 443 must reach the VPS before the first boot.
+The new API name gets its certificate when Caddy reloads, so `api.omniassist` must resolve to this VPS first.
 
-## VPS files
+## First boot
 
-On the VPS, keep this directory together:
+On the VPS:
 
 ```sh
-cp .env.example .env
+git clone --branch production --single-branch https://github.com/Kevin-Rozario/OmniAssist.git
+cd OmniAssist/deploy
 cp api.env.example api.env
 ```
 
-Edit `.env` and replace `ACME_EMAIL=you@kevinrozario.com` with a mailbox you read. Edit `api.env` with the Neon pooled URL, the Clerk production keys, and `WEB_ORIGINS`.
+Edit `api.env`: Neon pooled URL, Clerk keys, and `WEB_ORIGINS`. `api.env` is gitignored.
 
-`api.env` is gitignored. `.env` is gitignored by the root `.env*` rule.
-
-The image is private on GHCR until you change that. Log in once on the VPS with a GitHub token that has `read:packages`:
+Log in once if the GHCR package is private. The token needs `read:packages`:
 
 ```sh
 echo "$GHCR_TOKEN" | docker login ghcr.io -u kevin-rozario --password-stdin
+docker compose pull
+docker compose up -d
+curl -fsS http://127.0.0.1:3000/health
 ```
 
-## Rollout
-
-From this directory:
+The local curl must succeed before Caddy changes. Then install the Caddyfile. It keeps `kevinrozario.com` and adds the API host:
 
 ```sh
+sudo cp /etc/caddy/Caddyfile /etc/caddy/Caddyfile.bak
+sudo cp Caddyfile /etc/caddy/Caddyfile
+sudo caddy validate --config /etc/caddy/Caddyfile
+sudo systemctl reload caddy
+```
+
+## Later releases
+
+From `~/OmniAssist`:
+
+```sh
+git pull
+cd deploy
 docker compose pull
 docker compose up -d
 ```
@@ -70,8 +85,10 @@ IMAGE_TAG=<commit-sha> docker compose up -d
 After changing `api.env`, recreate the API container:
 
 ```sh
-docker compose up -d --force-recreate api
+docker compose up -d --force-recreate
 ```
+
+Reload Caddy only when `deploy/Caddyfile` changed. Repeat the copy, validate, and reload from the first boot.
 
 ## Rollback
 
@@ -82,7 +99,7 @@ IMAGE_TAG=<previous-commit-sha> docker compose pull
 IMAGE_TAG=<previous-commit-sha> docker compose up -d
 ```
 
-The API container is limited to 512 MB. Raise `mem_limit` in `compose.yaml` if the kernel OOM-kills it. Caddy keeps certificates in the `caddy-data` volume, so a recreate does not request a new account.
+The API container is limited to 512 MB. Raise `mem_limit` in `compose.yml` if the kernel OOM-kills it. Certificates stay with the host Caddy, not in a Compose volume.
 
 ## Checks
 

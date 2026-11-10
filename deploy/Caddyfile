@@ -1,9 +1,10 @@
-{
-	email {$ACME_EMAIL}
+kevinrozario.com, www.kevinrozario.com {
+	root * /var/www/html
+	file_server
 }
 
-{$API_DOMAIN} {
-	reverse_proxy api:3000 {
+api.omniassist.kevinrozario.com {
+	reverse_proxy 127.0.0.1:3000 {
 		flush_interval -1
 	}
 }
