@@ -65,6 +65,10 @@ export function createR2ObjectStoreClient(config: R2ClientConfig): ObjectStoreCl
       accessKeyId: config.accessKeyId,
       secretAccessKey: config.secretAccessKey,
     },
+    // SDK default WHEN_SUPPORTED adds a CRC32 checksum on PutObject. R2 accepts
+    // CRC32 only as a composite checksum, and rejects the default full-object header.
+    requestChecksumCalculation: 'WHEN_REQUIRED',
+    responseChecksumValidation: 'WHEN_REQUIRED',
   });
 
   return {
