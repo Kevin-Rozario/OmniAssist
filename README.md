@@ -99,7 +99,7 @@ The Home page (`/`) is the chat screen for every signed-in user. Press Enter to 
 
 ### Knowledge Base (admins)
 
-`/knowledge-base` lets admins upload, retry and delete documents (PDF, Word, Markdown, text). Uploads are stored in R2, then an Inngest job (`kb-ingest-document`, event `kb/document.uploaded`) extracts, chunks and indexes them in Pinecone. Members see a forbidden state.
+`/knowledge-base` lets admins upload, retry and delete documents (PDF, Word, Markdown, text). Select several files at once (Shift or Command); they upload three at a time, a failed file never stops the rest, and each one is ingested on its own. Uploads are stored in R2, then an Inngest job (`kb-ingest-document`, event `kb/document.uploaded`) extracts, chunks and indexes them in Pinecone. Members see a forbidden state.
 
 ### Ask API
 
