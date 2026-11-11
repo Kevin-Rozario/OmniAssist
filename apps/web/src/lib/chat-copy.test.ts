@@ -10,6 +10,7 @@ import {
   isAbort,
   needsNewChat,
   stageLabel,
+  tightenListSpacing,
   toChatError,
 } from './chat-copy';
 
@@ -112,4 +113,10 @@ it('sends the user to a new chat only when the conversation cannot continue', ()
   expect(needsNewChat({ kind: 'conversation_full' })).toBe(true);
   expect(needsNewChat({ kind: 'conversation_missing' })).toBe(true);
   expect(needsNewChat({ kind: 'unavailable' })).toBe(false);
+});
+
+it('tightens the gaps between list items but keeps paragraph breaks', () => {
+  expect(tightenListSpacing('Steps:\n\n1. Open VPN\n\n2. Sign in\n\n- extra\n\nDone.'))
+    .toBe('Steps:\n1. Open VPN\n2. Sign in\n- extra\n\nDone.');
+  expect(tightenListSpacing('One.\n\nTwo.')).toBe('One.\n\nTwo.');
 });

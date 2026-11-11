@@ -131,3 +131,8 @@ export function answerOrigin(source: AnswerSource, confidence: SourceConfidence)
       : null,
   };
 }
+
+/** Removes the blank line before each list item, so points sit close together while paragraphs keep their gap. */
+export function tightenListSpacing(text: string): string {
+  return text.replace(/\n[ \t]*\n+(?=[ \t]*(?:[-*•]|\d+[.)])[ \t]+\S)/g, '\n');
+}
