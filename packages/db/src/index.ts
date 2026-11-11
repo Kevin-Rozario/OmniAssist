@@ -18,4 +18,4 @@ export function createDb(url: string, options: CreateDbOptions = {}): Database {
   return drizzle({ client: pool, schema });
 }
 
-export { and, desc, eq, sql } from 'drizzle-orm';
+export { and, asc, desc, eq, sql } from 'drizzle-orm';
