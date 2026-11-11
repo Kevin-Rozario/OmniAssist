@@ -12,7 +12,7 @@ export interface UserDirectory {
 
 type ClerkUser = Awaited<ReturnType<ClerkClient['users']['getUser']>>;
 
-export function toUserProfile(user: Pick<ClerkUser, 'firstName' | 'lastName' | 'username' | 'primaryEmailAddressId' | 'emailAddresses'>): UserProfile {
+function toUserProfile(user: Pick<ClerkUser, 'firstName' | 'lastName' | 'username' | 'primaryEmailAddressId' | 'emailAddresses'>): UserProfile {
   const primaryEmail = user.emailAddresses.find(email => email.id === user.primaryEmailAddressId)?.emailAddress
     ?? user.emailAddresses[0]?.emailAddress
     ?? null;

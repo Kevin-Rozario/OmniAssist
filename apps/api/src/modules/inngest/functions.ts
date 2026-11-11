@@ -3,7 +3,7 @@ import type { IngestPipelineDeps } from './pipeline';
 import { DOCUMENT_UPLOADED_EVENT } from '../documents/events';
 import { markIngestFailed, runIngestPipeline } from './pipeline';
 
-export const INGEST_DOCUMENT_FUNCTION_ID = 'kb-ingest-document' as const;
+const INGEST_DOCUMENT_FUNCTION_ID = 'kb-ingest-document' as const;
 
 export function createIngestDocumentFunction(
   inngest: OmniInngest,

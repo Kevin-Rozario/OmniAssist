@@ -2,16 +2,16 @@ import type { DocumentUploadError } from '@omni/types';
 import { DocumentUploadRejectedError } from '../../lib/errors';
 
 /** Extension → preferred content type for knowledge-base uploads. */
-export const SUPPORTED_UPLOAD_EXTENSIONS = {
+const SUPPORTED_UPLOAD_EXTENSIONS = {
   '.md': 'text/markdown',
   '.txt': 'text/plain',
   '.pdf': 'application/pdf',
   '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 } as const;
 
-export type SupportedUploadExtension = keyof typeof SUPPORTED_UPLOAD_EXTENSIONS;
+type SupportedUploadExtension = keyof typeof SUPPORTED_UPLOAD_EXTENSIONS;
 
-export function extensionOf(filename: string): string {
+function extensionOf(filename: string): string {
   const base = filename.split(/[/\\]/).pop() ?? filename;
   const dot = base.lastIndexOf('.');
   if (dot <= 0)
@@ -19,7 +19,7 @@ export function extensionOf(filename: string): string {
   return base.slice(dot).toLowerCase();
 }
 
-export function isSupportedExtension(ext: string): ext is SupportedUploadExtension {
+function isSupportedExtension(ext: string): ext is SupportedUploadExtension {
   return Object.hasOwn(SUPPORTED_UPLOAD_EXTENSIONS, ext);
 }
 
@@ -29,13 +29,13 @@ export function displayFilename(filename: string): string {
 }
 
 /** Strip path segments and replace characters unsafe in object keys. */
-export function safeFilename(filename: string): string {
+function safeFilename(filename: string): string {
   const base = displayFilename(filename);
   const cleaned = base.replace(/[^\w.\-+() ]+/g, '_').replace(/\s+/g, ' ').trim();
   return (cleaned || 'file').slice(0, 200);
 }
 
-export function contentTypeForFilename(filename: string): string | null {
+function contentTypeForFilename(filename: string): string | null {
   const ext = extensionOf(filename);
   if (!isSupportedExtension(ext))
     return null;

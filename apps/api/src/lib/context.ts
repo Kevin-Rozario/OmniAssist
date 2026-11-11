@@ -6,7 +6,7 @@ export interface AuthSession {
   role: Role;
 }
 
-export interface AppVariables {
+interface AppVariables {
   requestId: string;
   logger: Logger;
   auth: AuthSession | null;

@@ -1,7 +1,7 @@
 import type { Logger } from '../../lib/logger';
 import type { DependencyStatus, ReadinessResponse } from './schemas';
 
-export const READINESS_TIMEOUT_MS = 2000;
+const READINESS_TIMEOUT_MS = 2000;
 
 /** Resolves when the database answers a trivial query; rejects otherwise. */
 export type DatabasePing = (signal: AbortSignal) => Promise<void>;

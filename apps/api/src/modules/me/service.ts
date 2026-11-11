@@ -2,7 +2,7 @@ import type { MeResponse } from '@omni/types';
 import type { AuthSession } from '../../lib/context';
 import type { UserDirectory, UserProfile } from './repo';
 
-export const PROFILE_CACHE_TTL_MS = 60_000;
+const PROFILE_CACHE_TTL_MS = 60_000;
 
 export interface MeServiceOptions {
   directory: UserDirectory;

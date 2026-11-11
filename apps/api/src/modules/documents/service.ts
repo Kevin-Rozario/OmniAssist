@@ -17,7 +17,7 @@ export interface DocumentsServiceOptions {
   createId?: () => string;
 }
 
-export interface UploadDocumentInput {
+interface UploadDocumentInput {
   filename: string;
   bytes: Uint8Array;
   uploadedBy: string;

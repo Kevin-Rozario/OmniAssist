@@ -31,7 +31,7 @@ export interface JevClassifierOptions {
   logger?: JevLogger;
 }
 
-export const ROUTER_QUESTION_ID = 'route';
+const ROUTER_QUESTION_ID = 'route';
 
 export const ROUTER_OPTIONS = {
   kb: 'a question about IT support, company systems, policies, devices, access, accounts, software or incidents',

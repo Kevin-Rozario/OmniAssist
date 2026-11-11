@@ -1,6 +1,6 @@
 import { z } from '@hono/zod-openapi';
 
-export const DependencyStatusSchema = z.enum(['ok', 'unavailable']);
+const DependencyStatusSchema = z.enum(['ok', 'unavailable']);
 export type DependencyStatus = z.infer<typeof DependencyStatusSchema>;
 
 export const HealthResponseSchema = z.object({
