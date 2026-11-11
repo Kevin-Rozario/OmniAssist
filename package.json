@@ -16,7 +16,8 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "test:e2e": "turbo run test:e2e",
-    "seed-kb": "jiti scripts/seed-kb.ts"
+    "seed-kb": "jiti scripts/seed-kb.ts",
+    "ask": "jiti scripts/ask.ts"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^10.0.0",

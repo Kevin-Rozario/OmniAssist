@@ -45,6 +45,21 @@ pnpm --filter @omni/db db:migrate
 
 This creates `kb_documents` (and any later tables). `/ready` still only pings Postgres; R2/Pinecone/Inngest failures surface on document operations or as `failed` status.
 
+## Asking a question
+
+`POST /v1/ask` takes `{ "question": "…" }` (1 to 2000 characters, any signed-in user) and answers with a server-sent event stream: `status`, `citations`, `token`, then `done` (or `error`). The full contract is in `/docs`.
+
+From the repo root, `pnpm ask` calls a running API and prints the stream. The answer goes to stdout as it arrives. Stages, sources and a summary with the time to first token go to stderr.
+
+```sh
+pnpm ask --help
+pnpm ask --dry-run "How do I set up the VPN?"
+ASK_BEARER_TOKEN=<clerk-session-jwt> pnpm ask "How do I set up the VPN?"
+ASK_API_URL=https://api.omniassist.kevinrozario.com ASK_BEARER_TOKEN=<jwt> pnpm ask "..."
+```
+
+`ASK_API_URL` defaults to `http://127.0.0.1:3000`. `ASK_BEARER_TOKEN` is any signed-in user's Clerk session token.
+
 ## Scripts
 
 Run these from the repository root:
