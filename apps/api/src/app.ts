@@ -11,6 +11,7 @@ import { requireAuth } from './lib/auth';
 import { notFound, onError } from './lib/errors';
 import { createRouter } from './lib/openapi';
 import { accessLog, REQUEST_ID_HEADER, requestContext } from './lib/request-context';
+import { askRoutes } from './modules/ask/routes';
 import { documentsRoutes } from './modules/documents/routes';
 import { healthRoutes } from './modules/health/routes';
 import { meRoutes } from './modules/me/routes';
@@ -71,6 +72,7 @@ export function createApp(deps: AppDeps) {
   return app
     .route('/', healthRoutes(deps))
     .route('/v1', meRoutes(deps.meService))
+    .route('/v1', askRoutes(deps.askService))
     .route('/v1', documentsRoutes(deps.documentsService, {
       maxUploadBytes: deps.maxUploadBytes,
     }));
