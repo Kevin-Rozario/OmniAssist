@@ -57,8 +57,13 @@ export function ChatComposer({ isBusy, onSubmit, onStop }: ChatComposerProps) {
 
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     // Shift+Enter is a new line. Enter during IME composition belongs to the IME.
-    if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing)
+    if (
+      event.key !== 'Enter'
+      || event.shiftKey
+      || event.nativeEvent.isComposing
+    ) {
       return;
+    }
     event.preventDefault();
     submit();
   }
@@ -94,7 +99,7 @@ export function ChatComposer({ isBusy, onSubmit, onStop }: ChatComposerProps) {
                   onClick={onStop}
                   aria-label="Stop answering"
                 >
-                  <SquareIcon aria-hidden="true" className="fill-current" />
+                  <SquareIcon aria-hidden="true" className="fill-current size-5" />
                 </InputGroupButton>
               )
             : (
@@ -107,16 +112,18 @@ export function ChatComposer({ isBusy, onSubmit, onStop }: ChatComposerProps) {
                   disabled={!canSend}
                   aria-label="Send question"
                 >
-                  <SendHorizontalIcon aria-hidden="true" />
+                  <SendHorizontalIcon className="size-5" aria-hidden="true" />
                 </InputGroupButton>
               )}
         </InputGroupAddon>
       </InputGroup>
       <p
         id={counterId}
-        className={overLimit
-          ? 'min-h-4 px-2 text-xs text-destructive'
-          : 'min-h-4 px-2 text-xs text-muted-foreground'}
+        className={
+          overLimit
+            ? 'min-h-4 px-2 text-xs text-destructive'
+            : 'min-h-4 px-2 text-xs text-muted-foreground'
+        }
         hidden={!showCounter}
       >
         {overLimit
