@@ -4,9 +4,11 @@ import { createClerkClient } from '@clerk/backend';
 import { serve } from '@hono/node-server';
 import { createDb, sql } from '@omni/db';
 import { createApp } from './app';
+import { createAskDeps } from './lib/ask-deps';
 import { clerkVerifier } from './lib/auth';
 import { createKbDeps } from './lib/kb-deps';
 import { createLogger } from './lib/logger';
+import { createAskService } from './modules/ask/service';
 import { drizzleDocumentsRepo } from './modules/documents/repo';
 import { createDocumentsService } from './modules/documents/service';
 import { createInngestClient } from './modules/inngest/client';
@@ -21,6 +23,7 @@ export function startServer(env: Env): void {
     onPoolError: error => logger.error({ err: error }, 'idle database connection failed'),
   });
   const kbDeps = createKbDeps(env);
+  const askDeps = createAskDeps(env, { vectorStore: kbDeps.vectorStore, logger });
   const clerk = createClerkClient({ secretKey: env.CLERK_SECRET_KEY, publishableKey: env.CLERK_PUBLISHABLE_KEY });
   const documentsRepo = drizzleDocumentsRepo(db);
   const inngest = createInngestClient({
@@ -51,6 +54,7 @@ export function startServer(env: Env): void {
       events: inngestDocumentEvents(inngest),
       maxUploadBytes: kbDeps.maxUploadBytes,
     }),
+    askService: createAskService(askDeps),
     maxUploadBytes: kbDeps.maxUploadBytes,
     inngestHandler: createInngestHandler(inngest, ingestDeps),
     pingDatabase: async () => {

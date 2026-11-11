@@ -1,5 +1,6 @@
 import type { AuthVerifier } from './lib/auth';
 import type { Logger } from './lib/logger';
+import type { AskService } from './modules/ask/service';
 import type { DocumentsService } from './modules/documents/service';
 import type { DatabasePing } from './modules/health/service';
 import type { InngestHttpHandler } from './modules/inngest/routes';
@@ -20,6 +21,7 @@ export interface AppDeps {
   verifier: AuthVerifier;
   meService: MeService;
   documentsService: DocumentsService;
+  askService: AskService;
   /** Enforced on POST /v1/documents before the body is fully buffered. */
   maxUploadBytes: number;
   pingDatabase: DatabasePing;

@@ -1,6 +1,7 @@
 import type { AppDeps } from '../src/app';
 import type { AuthVerifier } from '../src/lib/auth';
 import type { AuthSession } from '../src/lib/context';
+import type { AskService } from '../src/modules/ask/service';
 import type { DocumentsService } from '../src/modules/documents/service';
 import { Writable } from 'node:stream';
 import { createApp } from '../src/app';
@@ -59,6 +60,13 @@ const stubDocumentsService: DocumentsService = {
   },
 };
 
+const stubAskService: AskService = {
+
+  async* ask() {
+    throw new Error('askService.ask is not configured in this test');
+  },
+};
+
 export function buildTestApp(overrides: Partial<AppDeps> = {}) {
   const log = captureLogger();
   const app = createApp({
@@ -74,6 +82,7 @@ export function buildTestApp(overrides: Partial<AppDeps> = {}) {
       }),
     },
     documentsService: stubDocumentsService,
+    askService: stubAskService,
     maxUploadBytes: 10 * 1024 * 1024,
     pingDatabase: async () => {},
     ...overrides,
