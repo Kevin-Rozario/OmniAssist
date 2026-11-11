@@ -1,5 +1,6 @@
 import type { AskStreamEvent } from '@omni/types';
 import { expect, it, vi } from 'vitest';
+import { env } from '@/env';
 import { ApiError, askStream, AskStreamError } from './api-client';
 
 const encoder = new TextEncoder();
@@ -79,7 +80,8 @@ it('posts the question with the bearer token and yields events in order', async 
   });
 
   const [url, init] = fetchMock.mock.calls[0] ?? [];
-  expect(String(url)).toBe('http://127.0.0.1:3000/v1/ask');
+  // CI sets NEXT_PUBLIC_API_URL itself, so compare with the configured origin.
+  expect(String(url)).toBe(`${env.NEXT_PUBLIC_API_URL.replace(/\/+$/, '')}/v1/ask`);
   expect(init?.method).toBe('POST');
   expect(JSON.parse(String(init?.body))).toEqual({ question: 'How do I set up the VPN?' });
   const headers = new Headers(init?.headers);
