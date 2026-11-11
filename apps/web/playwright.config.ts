@@ -32,6 +32,8 @@ export default defineConfig({
   testDir: './e2e',
   // `next dev` compiles routes on first request; parallel workers all wait on it.
   timeout: 60_000,
+  // A first visit to a route can wait on its compile, so assertions get more than the 5s default.
+  expect: { timeout: 15_000 },
   fullyParallel: true,
   retries: process.env.CI ? 1 : 0,
   use: {
