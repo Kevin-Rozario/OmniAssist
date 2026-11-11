@@ -1,4 +1,28 @@
 export {
+  createJevClassifier,
+  type JevClassifierOptions,
+  type JevClient,
+  type JevLogger,
+} from './adapters/jev';
+export {
+  createOpenAiGenerator,
+  type OpenAiChatClient,
+  type OpenAiGeneratorOptions,
+} from './adapters/openai';
+export {
+  createSdkJevClassifier,
+  createSdkOpenAiGenerator,
+  createSdkTavilyWebSearch,
+  type SdkJevClassifierOptions,
+  type SdkOpenAiGeneratorOptions,
+  type SdkTavilyWebSearchOptions,
+} from './adapters/sdk';
+export {
+  createTavilyWebSearch,
+  type TavilySearchClient,
+  type TavilyWebSearchOptions,
+} from './adapters/tavily';
+export {
   createRagGraph,
   type RagGraph,
   type RagGraphOptions,
