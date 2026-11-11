@@ -2,6 +2,7 @@ import type { AppDeps } from '../src/app';
 import type { AuthVerifier } from '../src/lib/auth';
 import type { AuthSession } from '../src/lib/context';
 import type { AskService } from '../src/modules/ask/service';
+import type { ConversationsService } from '../src/modules/conversations/service';
 import type { DocumentsService } from '../src/modules/documents/service';
 import { Writable } from 'node:stream';
 import { createApp } from '../src/app';
@@ -60,7 +61,21 @@ const stubDocumentsService: DocumentsService = {
   },
 };
 
+const stubConversationsService: ConversationsService = {
+  list: async () => ({ conversations: [] }),
+  get: async (_userId, id) => {
+    throw new NotFoundError(`Conversation ${id} does not exist.`);
+  },
+  rename: async (_userId, id) => {
+    throw new NotFoundError(`Conversation ${id} does not exist.`);
+  },
+  delete: async (_userId, id) => {
+    throw new NotFoundError(`Conversation ${id} does not exist.`);
+  },
+};
+
 const stubAskService: AskService = {
+  begin: async (_userId, conversationId) => ({ conversationId: conversationId ?? null, history: [] }),
 
   async* ask() {
     throw new Error('askService.ask is not configured in this test');
@@ -83,6 +98,7 @@ export function buildTestApp(overrides: Partial<AppDeps> = {}) {
     },
     documentsService: stubDocumentsService,
     askService: stubAskService,
+    conversationsService: stubConversationsService,
     maxUploadBytes: 10 * 1024 * 1024,
     pingDatabase: async () => {},
     ...overrides,

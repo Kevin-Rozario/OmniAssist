@@ -15,7 +15,7 @@ function preflight(origin: string) {
 describe('cors', () => {
   it('allows a preflight from the configured web origin', async () => {
     const { app } = buildTestApp();
-    const res = await app.request('/v1/me', preflight(WEB_ORIGIN));
+    const res = await app.request('/api/v1/me', preflight(WEB_ORIGIN));
 
     expect(res.status).toBe(204);
     expect(res.headers.get('Access-Control-Allow-Origin')).toBe(WEB_ORIGIN);
@@ -26,14 +26,14 @@ describe('cors', () => {
 
   it('does not grant access to another origin', async () => {
     const { app } = buildTestApp();
-    const res = await app.request('/v1/me', preflight('https://evil.example'));
+    const res = await app.request('/api/v1/me', preflight('https://evil.example'));
 
     expect(res.headers.get('Access-Control-Allow-Origin')).toBeNull();
   });
 
   it('exposes X-Request-Id to the browser on actual requests', async () => {
     const { app } = buildTestApp();
-    const res = await app.request('/health', {
+    const res = await app.request('/api/health', {
       headers: { Origin: WEB_ORIGIN },
     });
 

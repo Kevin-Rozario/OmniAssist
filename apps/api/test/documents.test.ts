@@ -57,11 +57,11 @@ function markdownForm(name = 'vpn.md', contents = '# VPN') {
   return form;
 }
 
-describe('/v1/documents', () => {
+describe('/api/v1/documents', () => {
   it('allows an admin to upload and list documents', async () => {
     const { app, uploaded } = buildDocumentsApp();
 
-    const created = await app.request('/v1/documents', {
+    const created = await app.request('/api/v1/documents', {
       method: 'POST',
       headers: { Authorization: 'Bearer admin-token' },
       body: markdownForm(),
@@ -78,7 +78,7 @@ describe('/v1/documents', () => {
       { documentId: DOC_ID, generation: 1 },
     ]);
 
-    const listed = await app.request('/v1/documents', {
+    const listed = await app.request('/api/v1/documents', {
       headers: { Authorization: 'Bearer admin-token' },
     });
     expect(listed.status).toBe(200);
@@ -92,27 +92,27 @@ describe('/v1/documents', () => {
   it('returns 403 for a member and 401 when unauthenticated', async () => {
     const { app } = buildDocumentsApp();
 
-    const member = await app.request('/v1/documents', {
+    const member = await app.request('/api/v1/documents', {
       headers: { Authorization: 'Bearer member-token' },
     });
     expect(member.status).toBe(403);
     expect(await readProblem(member)).toMatchObject({ type: problemType.forbidden, status: 403 });
 
-    const anon = await app.request('/v1/documents');
+    const anon = await app.request('/api/v1/documents');
     expect(anon.status).toBe(401);
     expect(await readProblem(anon)).toMatchObject({ type: problemType.unauthenticated, status: 401 });
   });
 
-  it('does not apply admin role to unrelated /v1 paths', async () => {
+  it('does not apply admin role to unrelated /api/v1 paths', async () => {
     const { app } = buildDocumentsApp();
 
-    const member = await app.request('/v1/nope', {
+    const member = await app.request('/api/v1/nope', {
       headers: { Authorization: 'Bearer member-token' },
     });
     expect(member.status).toBe(404);
     expect(await readProblem(member)).toMatchObject({ type: problemType.notFound, status: 404 });
 
-    const anon = await app.request('/v1/nope');
+    const anon = await app.request('/api/v1/nope');
     expect(anon.status).toBe(401);
     expect(await readProblem(anon)).toMatchObject({ type: problemType.unauthenticated, status: 401 });
   });
@@ -120,7 +120,7 @@ describe('/v1/documents', () => {
   it('rejects unsupported formats and oversized files before storage', async () => {
     const { app, objectStore } = buildDocumentsApp();
 
-    const unsupported = await app.request('/v1/documents', {
+    const unsupported = await app.request('/api/v1/documents', {
       method: 'POST',
       headers: { Authorization: 'Bearer admin-token' },
       body: (() => {
@@ -138,7 +138,7 @@ describe('/v1/documents', () => {
     });
     expect(objectStore.objects.size).toBe(0);
 
-    const oversized = await app.request('/v1/documents', {
+    const oversized = await app.request('/api/v1/documents', {
       method: 'POST',
       headers: { Authorization: 'Bearer admin-token' },
       body: (() => {
@@ -165,7 +165,7 @@ describe('/v1/documents', () => {
       'x'.repeat(128 * 1024),
     ], 'huge.md', { type: 'text/markdown' }));
 
-    const res = await app.request('/v1/documents', {
+    const res = await app.request('/api/v1/documents', {
       method: 'POST',
       headers: { Authorization: 'Bearer admin-token' },
       body: form,
@@ -183,20 +183,20 @@ describe('/v1/documents', () => {
   it('gets, reingests and deletes a document', async () => {
     const { app, objectStore, vectorStore, uploaded } = buildDocumentsApp();
 
-    await app.request('/v1/documents', {
+    await app.request('/api/v1/documents', {
       method: 'POST',
       headers: { Authorization: 'Bearer admin-token' },
       body: markdownForm(),
     });
 
-    const got = await app.request(`/v1/documents/${DOC_ID}`, {
+    const got = await app.request(`/api/v1/documents/${DOC_ID}`, {
       headers: { Authorization: 'Bearer admin-token' },
     });
     expect(got.status).toBe(200);
     expect(DocumentDetailSchema.parse(await got.json()).id).toBe(DOC_ID);
 
     uploaded.length = 0;
-    const reingest = await app.request(`/v1/documents/${DOC_ID}/reingest`, {
+    const reingest = await app.request(`/api/v1/documents/${DOC_ID}/reingest`, {
       method: 'POST',
       headers: { Authorization: 'Bearer admin-token' },
     });
@@ -206,7 +206,7 @@ describe('/v1/documents', () => {
       { documentId: DOC_ID, generation: 2 },
     ]);
 
-    const deleted = await app.request(`/v1/documents/${DOC_ID}`, {
+    const deleted = await app.request(`/api/v1/documents/${DOC_ID}`, {
       method: 'DELETE',
       headers: { Authorization: 'Bearer admin-token' },
     });
@@ -214,7 +214,7 @@ describe('/v1/documents', () => {
     expect(vectorStore.deleted).toEqual([DOC_ID]);
     expect(objectStore.objects.size).toBe(0);
 
-    const missing = await app.request(`/v1/documents/${DOC_ID}`, {
+    const missing = await app.request(`/api/v1/documents/${DOC_ID}`, {
       headers: { Authorization: 'Bearer admin-token' },
     });
     expect(missing.status).toBe(404);
@@ -222,18 +222,18 @@ describe('/v1/documents', () => {
 
   it('documents OpenAPI paths for the documents module', async () => {
     const { app } = buildDocumentsApp();
-    const doc = await (await app.request('/openapi.json')).json() as { paths: Record<string, unknown> };
+    const doc = await (await app.request('/api/openapi.json')).json() as { paths: Record<string, unknown> };
 
     expect(Object.keys(doc.paths)).toEqual(expect.arrayContaining([
-      '/v1/documents',
-      '/v1/documents/{id}',
-      '/v1/documents/{id}/reingest',
+      '/api/v1/documents',
+      '/api/v1/documents/{id}',
+      '/api/v1/documents/{id}/reingest',
     ]));
-    expect(doc.paths['/v1/documents']).toEqual(expect.objectContaining({
+    expect(doc.paths['/api/v1/documents']).toEqual(expect.objectContaining({
       get: expect.any(Object),
       post: expect.any(Object),
     }));
-    expect(doc.paths['/v1/documents/{id}']).toEqual(expect.objectContaining({
+    expect(doc.paths['/api/v1/documents/{id}']).toEqual(expect.objectContaining({
       get: expect.any(Object),
       delete: expect.any(Object),
     }));

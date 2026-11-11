@@ -1,12 +1,29 @@
 import type { AskEvent, GraphEvent, RagStateType } from '@omni/rag-graph';
-import type { AskStage } from '@omni/types';
+import type { AskStage, Citation } from '@omni/types';
 import type { AskDeps } from '../../lib/ask-deps';
 import type { Logger } from '../../lib/logger';
+import type { ConversationsRepo } from '../conversations/repo';
 import { performance } from 'node:perf_hooks';
-import { sourceConfidenceFor } from '@omni/types';
-import { problemType } from '../../lib/errors';
+import { CONVERSATION_CONTEXT_TURNS, CONVERSATION_MAX_TURNS, CONVERSATION_TITLE_MAX_LENGTH, sourceConfidenceFor } from '@omni/types';
+import { v7 as uuidv7 } from 'uuid';
+import { ConflictError, NotFoundError, problemType } from '../../lib/errors';
+
+/** Characters of each earlier question and answer given to the model, so the prompt stays bounded. */
+export const HISTORY_QUESTION_CHARS = 500;
+export const HISTORY_ANSWER_CHARS = 1500;
+
+export interface AskConversation {
+  /** The conversation to continue, or null to start a new one when the answer completes. */
+  conversationId: string | null;
+  /** The most recent exchanges, oldest first, already bounded. */
+  history: Array<{ question: string; answer: string }>;
+}
 
 export interface AskOptions {
+  /** The signed-in caller. Conversations are scoped to them. */
+  userId: string;
+  /** From `begin`. Omitted means a new conversation. */
+  conversation?: AskConversation;
   /** Client disconnect. Combined with the service deadline. */
   signal?: AbortSignal;
   /** Request-scoped logger. Receives stage names, timings, verdicts and error classes, never text. */
@@ -16,6 +33,11 @@ export interface AskOptions {
 }
 
 export interface AskService {
+  /**
+   * Resolves the conversation before anything streams. Throws `NotFoundError` for a missing or
+   * foreign id and `ConflictError` for a full conversation, so no processing starts in those cases.
+   */
+  begin: (userId: string, conversationId: string | undefined) => Promise<AskConversation>;
   /**
    * Yields the ordered events of one question. The stream ends after `done` or `error`.
    * A cancelled request ends silently: nobody is listening, so no event is produced.
@@ -36,9 +58,52 @@ function errorClass(error: unknown): string {
     : typeof error;
 }
 
-export function createAskService(deps: AskDeps): AskService {
+export interface AskServiceDeps extends AskDeps {
+  conversations: ConversationsRepo;
+  createId?: () => string;
+}
+
+function bounded(text: string, max: number): string {
+  return text.length > max
+    ? `${text.slice(0, max)}…`
+    : text;
+}
+
+/** The first question, flattened to one line and shortened with an ellipsis past the limit. */
+export function titleFromQuestion(question: string): string {
+  const flat = question.replace(/\s+/g, ' ').trim();
+  return flat.length > CONVERSATION_TITLE_MAX_LENGTH
+    ? `${flat.slice(0, CONVERSATION_TITLE_MAX_LENGTH - 1).trimEnd()}…`
+    : flat;
+}
+
+export function createAskService(deps: AskServiceDeps): AskService {
+  const { conversations, createId = uuidv7 } = deps;
+
   return {
-    async* ask(question, { signal: clientSignal, logger, requestId }) {
+    async begin(userId, conversationId) {
+      if (!conversationId)
+        return { conversationId: null, history: [] };
+
+      const count = await conversations.turnCount(userId, conversationId);
+      if (count === null)
+        throw new NotFoundError(`Conversation ${conversationId} does not exist.`);
+      if (count >= CONVERSATION_MAX_TURNS)
+        throw new ConflictError('This conversation is full. Start a new conversation to keep asking.');
+
+      const turns = await conversations.recentTurns(userId, conversationId, CONVERSATION_CONTEXT_TURNS);
+      if (turns === null)
+        throw new NotFoundError(`Conversation ${conversationId} does not exist.`);
+      return {
+        conversationId,
+        history: turns.map(turn => ({
+          question: bounded(turn.question, HISTORY_QUESTION_CHARS),
+          answer: bounded(turn.answer, HISTORY_ANSWER_CHARS),
+        })),
+      };
+    },
+
+    async* ask(question, { userId, conversation, signal: clientSignal, logger, requestId }) {
       const startedAt = performance.now();
       const deadline = AbortSignal.timeout(deps.timeoutMs);
       const signal = clientSignal
@@ -49,6 +114,8 @@ export function createAskService(deps: AskDeps): AskService {
       let stage: AskStage | undefined;
       let stageStartedAt = startedAt;
       let tokens = 0;
+      let answer = '';
+      let sources: Citation[] = [];
       let state: RagStateType | undefined;
 
       function closeStage(): void {
@@ -60,7 +127,7 @@ export function createAskService(deps: AskDeps): AskService {
       }
 
       try {
-        const stream = await deps.graph.stream({ question }, {
+        const stream = await deps.graph.stream({ question, history: conversation?.history ?? [] }, {
           streamMode: ['custom', 'values'],
           signal,
         });
@@ -78,6 +145,10 @@ export function createAskService(deps: AskDeps): AskService {
           }
           else if (event.type === 'token') {
             tokens += 1;
+            answer += event.text;
+          }
+          else if (event.type === 'citations') {
+            sources = event.sources;
           }
           yield event;
         }
@@ -97,10 +168,39 @@ export function createAskService(deps: AskDeps): AskService {
           totalMs: Math.round(performance.now() - startedAt),
         }, 'ask completed');
 
+        // An abort or deadline that fires now must not save, so success always means saved.
+        signal.throwIfAborted();
+        const sourceConfidence = sourceConfidenceFor(answerSource);
+        const turn = {
+          id: createId(),
+          question,
+          answer,
+          answerSource,
+          sourceConfidence,
+          sources,
+        };
+        let savedTo: string;
+        if (conversation?.conversationId) {
+          const result = await conversations.appendTurn(userId, conversation.conversationId, turn, CONVERSATION_MAX_TURNS);
+          if (result.status !== 'saved')
+            throw new Error(`conversation append refused: ${result.status}`);
+          savedTo = conversation.conversationId;
+        }
+        else {
+          savedTo = createId();
+          await conversations.create(userId, {
+            id: savedTo,
+            title: titleFromQuestion(question),
+            turn,
+          });
+        }
+        logger.info({ conversationId: savedTo }, 'conversation saved');
+
         yield {
           type: 'done',
           answerSource,
-          sourceConfidence: sourceConfidenceFor(answerSource),
+          sourceConfidence,
+          conversationId: savedTo,
         };
       }
       catch (error) {

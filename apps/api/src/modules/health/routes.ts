@@ -6,7 +6,7 @@ import { checkReadiness } from './service';
 
 const healthRoute = createRoute({
   method: 'get',
-  path: '/health',
+  path: '/api/health',
   tags: ['Operations'],
   summary: 'Liveness probe',
   responses: {
@@ -21,7 +21,7 @@ const healthRoute = createRoute({
 
 const readyRoute = createRoute({
   method: 'get',
-  path: '/ready',
+  path: '/api/ready',
   tags: ['Operations'],
   summary: 'Readiness probe',
   responses: {

@@ -6,7 +6,7 @@ const UUID_V7 = /^[\da-f]{8}-[\da-f]{4}-7[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}
 describe('request ID', () => {
   it('echoes a supplied ID', async () => {
     const { app, log } = buildTestApp();
-    const res = await app.request('/health', {
+    const res = await app.request('/api/health', {
       headers: { 'X-Request-Id': 'abc-123' },
     });
 
@@ -16,7 +16,7 @@ describe('request ID', () => {
 
   it('generates a UUID v7 when none is supplied', async () => {
     const { app } = buildTestApp();
-    const res = await app.request('/health');
+    const res = await app.request('/api/health');
 
     expect(res.headers.get('X-Request-Id')).toMatch(UUID_V7);
   });
@@ -29,7 +29,7 @@ describe('request ID', () => {
     ],
   ])('replaces an ID that %s', async (_, invalid) => {
     const { app } = buildTestApp();
-    const res = await app.request('/health', {
+    const res = await app.request('/api/health', {
       headers: { 'X-Request-Id': invalid },
     });
 
@@ -49,7 +49,7 @@ describe('request ID', () => {
 describe('access log', () => {
   it('writes one JSON line with method, path, status, duration and request ID', async () => {
     const { app, log } = buildTestApp();
-    await app.request('/health', {
+    await app.request('/api/health', {
       headers: { 'X-Request-Id': 'log-1' },
     });
 
@@ -58,7 +58,7 @@ describe('access log', () => {
     expect(access[0]).toMatchObject({
       level: 'info',
       method: 'GET',
-      path: '/health',
+      path: '/api/health',
       status: 200,
       requestId: 'log-1',
     });
@@ -69,7 +69,7 @@ describe('access log', () => {
   it('never writes the bearer token value', async () => {
     const token = 'eyJhbGciOiJSUzI1NiJ9.super-secret-session-token';
     const { app, log } = buildTestApp();
-    const res = await app.request('/health', {
+    const res = await app.request('/api/health', {
       headers: { 'Authorization': `Bearer ${token}`, 'X-Request-Id': 'tok-1' },
     });
 

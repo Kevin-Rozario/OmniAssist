@@ -4,7 +4,7 @@ import { problemType } from '../src/lib/errors';
 import { buildTestApp, fakeVerifier } from './harness';
 
 describe('/api/inngest', () => {
-  it('is reachable without a Clerk token while /v1/documents stays protected', async () => {
+  it('is reachable without a Clerk token while /api/v1/documents stays protected', async () => {
     const { app } = buildTestApp({
       verifier: fakeVerifier({
         'admin-token': { userId: 'user_admin', role: 'admin' },
@@ -16,7 +16,7 @@ describe('/api/inngest', () => {
     expect(jobs.status).toBe(200);
     expect(await jobs.json()).toEqual({ ok: true });
 
-    const documents = await app.request('/v1/documents');
+    const documents = await app.request('/api/v1/documents');
     expect(documents.status).toBe(401);
     expect(ProblemDetailsSchema.parse(await documents.json())).toMatchObject({
       type: problemType.unauthenticated,

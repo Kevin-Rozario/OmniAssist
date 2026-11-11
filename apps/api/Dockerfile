@@ -28,5 +28,5 @@ COPY --from=build --chown=node:node /out/api /app
 USER node
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD ["node", "--input-type=module", "-e", "const port=process.env.PORT??'3000';const res=await fetch('http://127.0.0.1:'+port+'/health');if(!res.ok)process.exit(1)"]
+  CMD ["node", "--input-type=module", "-e", "const port=process.env.PORT??'3000';const res=await fetch('http://127.0.0.1:'+port+'/api/health');if(!res.ok)process.exit(1)"]
 CMD ["node", "dist/index.js"]

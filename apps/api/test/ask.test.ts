@@ -2,12 +2,16 @@ import type { AskEvent } from '@omni/rag-graph';
 import type { AskOptions, AskService } from '../src/modules/ask/service';
 import { ProblemDetailsSchema } from '@omni/types';
 import { describe, expect, it } from 'vitest';
+import { createAskService } from '../src/modules/ask/service';
 import { buildTestApp, fakeVerifier } from './harness';
+import { memoryConversationsRepo } from './memory-conversations-repo';
 
 const sessions = {
   'member-token': { userId: 'user_member', role: 'member' as const },
   'admin-token': { userId: 'user_admin', role: 'admin' as const },
 };
+
+const CONVERSATION_ID = '019a1b2c-3d4e-7f80-9abc-def012345678';
 
 const KB_EVENTS: AskEvent[] = [
   { type: 'status', stage: 'routing' },
@@ -27,7 +31,12 @@ const KB_EVENTS: AskEvent[] = [
   },
   { type: 'token', text: 'Install ' },
   { type: 'token', text: 'the client.' },
-  { type: 'done', answerSource: 'kb', sourceConfidence: 'high' },
+  {
+    type: 'done',
+    answerSource: 'kb',
+    sourceConfidence: 'high',
+    conversationId: CONVERSATION_ID,
+  },
 ];
 
 const FALLBACK_EVENTS: AskEvent[] = [
@@ -37,9 +46,13 @@ const FALLBACK_EVENTS: AskEvent[] = [
   { type: 'done', answerSource: 'fallback', sourceConfidence: 'low' },
 ];
 
-function scriptedService(events: AskEvent[] | (() => AsyncIterable<AskEvent>)) {
+function scriptedService(
+  events: AskEvent[] | (() => AsyncIterable<AskEvent>),
+  begin: AskService['begin'] = async (_userId, conversationId) => ({ conversationId: conversationId ?? null, history: [] }),
+) {
   const calls: Array<{ question: string; options: AskOptions }> = [];
   const service: AskService = {
+    begin,
     ask: (question, options) => {
       calls.push({ question, options });
       if (typeof events === 'function')
@@ -70,7 +83,7 @@ function post(
     headers.Authorization = `Bearer ${options.token ?? 'member-token'}`;
   if (options.contentType)
     headers['Content-Type'] = options.contentType;
-  return app.request('/v1/ask', {
+  return app.request('/api/v1/ask', {
     method: 'POST',
     headers,
     body,
@@ -95,11 +108,11 @@ function parseFrames(text: string): Frame[] {
   });
 }
 
-describe('post /v1/ask authentication', () => {
+describe('post /api/v1/ask authentication', () => {
   it('rejects a request without a token and starts no processing', async () => {
     const { service, calls } = scriptedService(KB_EVENTS);
     const { app } = buildAskApp(service);
-    const res = await app.request('/v1/ask', {
+    const res = await app.request('/api/v1/ask', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: askJson('hello'),
@@ -122,7 +135,7 @@ describe('post /v1/ask authentication', () => {
   });
 });
 
-describe('post /v1/ask validation', () => {
+describe('post /api/v1/ask validation', () => {
   it.each([
     [
       'empty',
@@ -182,7 +195,7 @@ describe('post /v1/ask validation', () => {
   });
 });
 
-describe('post /v1/ask event stream', () => {
+describe('post /api/v1/ask event stream', () => {
   it('sends status, citations, tokens and done in order with SSE headers', async () => {
     const { service } = scriptedService(KB_EVENTS);
     const { app } = buildAskApp(service);
@@ -206,7 +219,7 @@ describe('post /v1/ask event stream', () => {
     expect(frames.flatMap(f => (f.event === 'token'
       ? [(f.data as { text: string }).text]
       : [])).join('')).toBe('Install the client.');
-    expect(frames.at(-1)!.data).toEqual({ answerSource: 'kb', sourceConfidence: 'high' });
+    expect(frames.at(-1)!.data).toEqual({ answerSource: 'kb', sourceConfidence: 'high', conversationId: CONVERSATION_ID });
   });
 
   it('omits citations for a fallback answer', async () => {
@@ -278,6 +291,7 @@ describe('post /v1/ask event stream', () => {
       finished = true;
     })());
     const wrapped: AskService = {
+      begin: service.begin,
       ask: (question, options) => {
         seenSignal = options.signal;
         return service.ask(question, options);
@@ -298,10 +312,10 @@ describe('post /v1/ask event stream', () => {
   });
 });
 
-describe('openAPI documentation of /v1/ask', () => {
+describe('openAPI documentation of /api/v1/ask', () => {
   it('lists the path with its request schema, event stream and problem responses', async () => {
     const { app } = buildTestApp();
-    const doc = await (await app.request('/openapi.json')).json() as {
+    const doc = await (await app.request('/api/openapi.json')).json() as {
       paths: Record<string, {
         post?: {
           requestBody?: { content: Record<string, { schema: unknown }> };
@@ -310,7 +324,7 @@ describe('openAPI documentation of /v1/ask', () => {
       }>;
     };
 
-    const operation = doc.paths['/v1/ask']?.post;
+    const operation = doc.paths['/api/v1/ask']?.post;
     expect(operation).toBeDefined();
 
     const schema = operation!.requestBody!.content['application/json']!.schema as {
@@ -331,5 +345,112 @@ describe('openAPI documentation of /v1/ask', () => {
       expect(operation!.responses['200']!.description).toContain(`\`${event}\``);
     for (const status of ['400', '401'])
       expect(operation!.responses[status]!.content).toHaveProperty(['application/problem+json']);
+  });
+});
+
+describe('post /api/v1/ask conversation reference', () => {
+  const OTHER_ID = '019a1b2c-3d4e-7f80-9abc-def012345679';
+
+  function realService(options: { turns?: number } = {}) {
+    const repo = memoryConversationsRepo();
+    const streamed: unknown[] = [];
+    const graph = {
+      stream: async (input: unknown) => {
+        streamed.push(input);
+        return (async function* () {
+          yield [
+            'values',
+            { answerSource: 'direct', route: 'direct' },
+          ];
+        })();
+      },
+    };
+    const service = createAskService({
+      graph: graph as never,
+      timeoutMs: 1000,
+      conversations: repo,
+      createId: () => CONVERSATION_ID,
+    });
+    const seed = async (userId: string, id: string, turns = options.turns ?? 1) => {
+      await repo.create(userId, {
+        id,
+        title: 't',
+        turn: seedTurn(1),
+      });
+      for (let n = 2; n <= turns; n++)
+        await repo.appendTurn(userId, id, seedTurn(n), 100);
+    };
+    return { repo, service, streamed, seed };
+  }
+
+  function seedTurn(n: number) {
+    return {
+      id: `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`,
+      question: `q${n}`,
+      answer: `a${n}`,
+      answerSource: 'kb' as const,
+      sourceConfidence: 'high' as const,
+      sources: [],
+    };
+  }
+
+  it('answers 404 for an unknown or foreign conversation before any graph call', async () => {
+    const { service, streamed, seed } = realService();
+    await seed('user_admin', OTHER_ID);
+    const { app } = buildAskApp(service);
+
+    for (const id of [CONVERSATION_ID, OTHER_ID]) {
+      const res = await post(app, JSON.stringify({ question: 'hi', conversationId: id }), JSON_TYPE);
+      expect(res.status).toBe(404);
+      expect(res.headers.get('Content-Type')).toContain('application/problem+json');
+      expect(ProblemDetailsSchema.safeParse(await res.json()).success).toBe(true);
+    }
+    expect(streamed).toEqual([]);
+  });
+
+  it('answers 400 naming conversationId for a malformed id, with no begin call', async () => {
+    const begins: unknown[] = [];
+    const { service } = scriptedService(KB_EVENTS, async (...args) => {
+      begins.push(args);
+      return { conversationId: null, history: [] };
+    });
+    const { app } = buildAskApp(service);
+    const res = await post(app, JSON.stringify({ question: 'hi', conversationId: 'not-a-uuid' }), JSON_TYPE);
+
+    expect(res.status).toBe(400);
+    const problem = await res.json() as { errors: Array<{ path: string }> };
+    expect(problem.errors.map(error => error.path)).toContain('conversationId');
+    expect(begins).toEqual([]);
+  });
+
+  it('answers 409 for a conversation that already has 100 turns, before any graph call', async () => {
+    const { service, streamed, seed } = realService({ turns: 100 });
+    await seed('user_member', CONVERSATION_ID);
+    const { app } = buildAskApp(service);
+    const res = await post(app, JSON.stringify({ question: 'hi', conversationId: CONVERSATION_ID }), JSON_TYPE);
+
+    expect(res.status).toBe(409);
+    expect(res.headers.get('Content-Type')).toContain('application/problem+json');
+    expect(streamed).toEqual([]);
+  });
+
+  it('passes the caller and the resolved conversation to the service', async () => {
+    const { service, calls } = scriptedService(KB_EVENTS, async () => ({
+      conversationId: CONVERSATION_ID,
+      history: [
+        { question: 'q', answer: 'a' },
+      ],
+    }));
+    const { app } = buildAskApp(service);
+    const res = await post(app, JSON.stringify({ question: 'and on a Mac?', conversationId: CONVERSATION_ID }), JSON_TYPE);
+    await res.text();
+
+    expect(calls[0]?.options.userId).toBe('user_member');
+    expect(calls[0]?.options.conversation).toEqual({
+      conversationId: CONVERSATION_ID,
+      history: [
+        { question: 'q', answer: 'a' },
+      ],
+    });
   });
 });

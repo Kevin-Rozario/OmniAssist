@@ -40,7 +40,7 @@ function appWithDirectory(getUser: ClerkClient['users']['getUser'], now: () => n
   });
 }
 
-describe('/v1/me', () => {
+describe('/api/v1/me', () => {
   it('returns the member and admin profiles from Clerk', async () => {
     const getUser = vi.fn(async (userId: string) => {
       if (userId === 'user_admin')
@@ -49,10 +49,10 @@ describe('/v1/me', () => {
     });
     const { app } = appWithDirectory(getUser as unknown as ClerkClient['users']['getUser']);
 
-    const member = await app.request('/v1/me', {
+    const member = await app.request('/api/v1/me', {
       headers: { Authorization: 'Bearer member-token' },
     });
-    const admin = await app.request('/v1/me', {
+    const admin = await app.request('/api/v1/me', {
       headers: { Authorization: 'Bearer admin-token' },
     });
 
@@ -81,13 +81,13 @@ describe('/v1/me', () => {
     const { app } = appWithDirectory(getUser as unknown as ClerkClient['users']['getUser'], () => now);
     const headers = { Authorization: 'Bearer member-token' };
 
-    expect((await app.request('/v1/me', { headers })).status).toBe(200);
+    expect((await app.request('/api/v1/me', { headers })).status).toBe(200);
     now += 59_999;
-    expect((await app.request('/v1/me', { headers })).status).toBe(200);
+    expect((await app.request('/api/v1/me', { headers })).status).toBe(200);
     expect(getUser).toHaveBeenCalledTimes(1);
 
     now += 1;
-    expect((await app.request('/v1/me', { headers })).status).toBe(200);
+    expect((await app.request('/api/v1/me', { headers })).status).toBe(200);
     expect(getUser).toHaveBeenCalledTimes(2);
   });
 });

@@ -23,7 +23,7 @@ function appWithAdminRoute(sessions: Parameters<typeof fakeVerifier>[0]) {
   const harness = buildTestApp({
     verifier: fakeVerifier(sessions),
   });
-  harness.app.get('/v1/admin-check', requireRole('admin'), (c) => {
+  harness.app.get('/api/v1/admin-check', requireRole('admin'), (c) => {
     return c.json({ userId: currentSession(c).userId }, 200);
   });
   return harness;
@@ -81,10 +81,10 @@ describe('clerk verifier', () => {
       verifier: clerkVerifier(clerkOptions),
     });
 
-    const admin = await app.request('/v1/me', {
+    const admin = await app.request('/api/v1/me', {
       headers: { Authorization: 'Bearer admin-token' },
     });
-    const member = await app.request('/v1/me', {
+    const member = await app.request('/api/v1/me', {
       headers: { Authorization: 'Bearer member-token' },
     });
 
@@ -108,11 +108,11 @@ describe('protected routes', () => {
       verifier: fakeVerifier(sessions),
     });
     const requests = [
-      app.request('/v1/me'),
-      app.request('/v1/me', {
+      app.request('/api/v1/me'),
+      app.request('/api/v1/me', {
         headers: { Authorization: 'Bearer expired-token' },
       }),
-      app.request('/v1/me', {
+      app.request('/api/v1/me', {
         headers: { Authorization: 'Bearer wrong-party-token' },
       }),
     ];
@@ -133,13 +133,13 @@ describe('protected routes', () => {
   it('returns 403 for a member and 200 for an admin on an admin-only route', async () => {
     const { app } = appWithAdminRoute(sessions);
 
-    const member = await app.request('/v1/admin-check', {
+    const member = await app.request('/api/v1/admin-check', {
       headers: { Authorization: 'Bearer member-token' },
     });
     expect(member.status).toBe(403);
     expect(await readProblem(member)).toMatchObject({ type: problemType.forbidden, status: 403 });
 
-    const admin = await app.request('/v1/admin-check', {
+    const admin = await app.request('/api/v1/admin-check', {
       headers: { Authorization: 'Bearer admin-token' },
     });
     expect(admin.status).toBe(200);
@@ -152,10 +152,10 @@ describe('protected routes', () => {
     });
 
     for (const path of [
-      '/health',
-      '/ready',
-      '/openapi.json',
-      '/docs',
+      '/api/health',
+      '/api/ready',
+      '/api/openapi.json',
+      '/api/docs',
       '/api/inngest',
     ]) {
       const res = await app.request(path);

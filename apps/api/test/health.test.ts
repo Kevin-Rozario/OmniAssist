@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { buildTestApp } from './harness';
 
-describe('/health', () => {
+describe('/api/health', () => {
   it('returns 200 without touching the database', async () => {
     const pingDatabase = vi.fn(async () => {});
     const { app } = buildTestApp({ pingDatabase });
-    const res = await app.request('/health');
+    const res = await app.request('/api/health');
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ status: 'ok' });
@@ -13,11 +13,11 @@ describe('/health', () => {
   });
 });
 
-describe('/ready', () => {
+describe('/api/ready', () => {
   it('returns 200 when the database answers', async () => {
     const pingDatabase = vi.fn(async () => {});
     const { app } = buildTestApp({ pingDatabase });
-    const res = await app.request('/ready');
+    const res = await app.request('/api/ready');
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({
@@ -33,7 +33,7 @@ describe('/ready', () => {
         throw new Error('connection refused');
       },
     });
-    const res = await app.request('/ready');
+    const res = await app.request('/api/ready');
 
     expect(res.status).toBe(503);
     expect(await res.json()).toEqual({
@@ -55,7 +55,7 @@ describe('/ready', () => {
         }),
       });
 
-      const pending = app.request('/ready');
+      const pending = app.request('/api/ready');
       await vi.advanceTimersByTimeAsync(2000);
       const res = await pending;
 
@@ -78,7 +78,7 @@ describe('/ready', () => {
         pingDatabase: () => new Promise<void>(resolve => setTimeout(resolve, 1900)),
       });
 
-      const pending = app.request('/ready');
+      const pending = app.request('/api/ready');
       await vi.advanceTimersByTimeAsync(1900);
       expect((await pending).status).toBe(200);
     }

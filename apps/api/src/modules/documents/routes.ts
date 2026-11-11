@@ -131,7 +131,7 @@ export function documentsRoutes(
   options: DocumentsRoutesOptions,
 ) {
   const router = createRouter();
-  // Scope admin auth to document paths only so other /v1 routers are unaffected.
+  // Scope admin auth to document paths only so other /api/v1 routers are unaffected.
   // Do not chain `.use()` into the return type or OpenAPIHono drops RPC types.
   router.use('/documents', requireRole('admin'));
   router.use('/documents/*', requireRole('admin'));

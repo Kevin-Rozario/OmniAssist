@@ -9,6 +9,8 @@ import { clerkVerifier } from './lib/auth';
 import { createKbDeps } from './lib/kb-deps';
 import { createLogger } from './lib/logger';
 import { createAskService } from './modules/ask/service';
+import { drizzleConversationsRepo } from './modules/conversations/repo';
+import { createConversationsService } from './modules/conversations/service';
 import { drizzleDocumentsRepo } from './modules/documents/repo';
 import { createDocumentsService } from './modules/documents/service';
 import { createInngestClient } from './modules/inngest/client';
@@ -26,6 +28,7 @@ export function startServer(env: Env): void {
   const askDeps = createAskDeps(env, { vectorStore: kbDeps.vectorStore, logger });
   const clerk = createClerkClient({ secretKey: env.CLERK_SECRET_KEY, publishableKey: env.CLERK_PUBLISHABLE_KEY });
   const documentsRepo = drizzleDocumentsRepo(db);
+  const conversationsRepo = drizzleConversationsRepo(db);
   const inngest = createInngestClient({
     eventKey: env.INNGEST_EVENT_KEY,
     signingKey: env.INNGEST_SIGNING_KEY,
@@ -54,7 +57,8 @@ export function startServer(env: Env): void {
       events: inngestDocumentEvents(inngest),
       maxUploadBytes: kbDeps.maxUploadBytes,
     }),
-    askService: createAskService(askDeps),
+    askService: createAskService({ ...askDeps, conversations: conversationsRepo }),
+    conversationsService: createConversationsService(conversationsRepo),
     maxUploadBytes: kbDeps.maxUploadBytes,
     inngestHandler: createInngestHandler(inngest, ingestDeps),
     pingDatabase: async () => {

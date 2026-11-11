@@ -1,6 +1,7 @@
 import type { AuthVerifier } from './lib/auth';
 import type { Logger } from './lib/logger';
 import type { AskService } from './modules/ask/service';
+import type { ConversationsService } from './modules/conversations/service';
 import type { DocumentsService } from './modules/documents/service';
 import type { DatabasePing } from './modules/health/service';
 import type { InngestHttpHandler } from './modules/inngest/routes';
@@ -12,6 +13,7 @@ import { notFound, onError } from './lib/errors';
 import { createRouter } from './lib/openapi';
 import { accessLog, REQUEST_ID_HEADER, requestContext } from './lib/request-context';
 import { askRoutes } from './modules/ask/routes';
+import { conversationsRoutes } from './modules/conversations/routes';
 import { documentsRoutes } from './modules/documents/routes';
 import { healthRoutes } from './modules/health/routes';
 import { meRoutes } from './modules/me/routes';
@@ -23,11 +25,12 @@ export interface AppDeps {
   meService: MeService;
   documentsService: DocumentsService;
   askService: AskService;
-  /** Enforced on POST /v1/documents before the body is fully buffered. */
+  conversationsService: ConversationsService;
+  /** Enforced on POST /api/v1/documents before the body is fully buffered. */
   maxUploadBytes: number;
   pingDatabase: DatabasePing;
   readinessTimeoutMs?: number;
-  /** Background-jobs serve path; outside `/v1`, no Clerk session required. */
+  /** Background-jobs serve path; outside `/api/v1`, no Clerk session required. */
   inngestHandler?: InngestHttpHandler;
 }
 
@@ -43,8 +46,8 @@ export function createApp(deps: AppDeps) {
     exposeHeaders: [REQUEST_ID_HEADER],
     maxAge: 600,
   }));
-  // Everything under /v1 is protected; public endpoints live outside the version prefix.
-  app.use('/v1/*', deps.verifier, requireAuth);
+  // Everything under /api/v1 is protected; public endpoints live outside the version prefix.
+  app.use('/api/v1/*', deps.verifier, requireAuth);
 
   app.onError(onError);
   app.notFound(notFound);
@@ -55,7 +58,7 @@ export function createApp(deps: AppDeps) {
     bearerFormat: 'JWT',
     description: 'A Clerk session token.',
   });
-  app.doc31('/openapi.json', {
+  app.doc31('/api/openapi.json', {
     openapi: '3.1.0',
     info: {
       title: 'OmniAssist AI API',
@@ -63,7 +66,7 @@ export function createApp(deps: AppDeps) {
       description: 'Errors use RFC 9457 problem details (`application/problem+json`).',
     },
   });
-  app.get('/docs', Scalar({ url: '/openapi.json', pageTitle: 'OmniAssist AI API' }));
+  app.get('/api/docs', Scalar({ url: '/api/openapi.json', pageTitle: 'OmniAssist AI API' }));
 
   const { inngestHandler } = deps;
   if (inngestHandler)
@@ -71,9 +74,10 @@ export function createApp(deps: AppDeps) {
 
   return app
     .route('/', healthRoutes(deps))
-    .route('/v1', meRoutes(deps.meService))
-    .route('/v1', askRoutes(deps.askService))
-    .route('/v1', documentsRoutes(deps.documentsService, {
+    .route('/api/v1', meRoutes(deps.meService))
+    .route('/api/v1', askRoutes(deps.askService))
+    .route('/api/v1', conversationsRoutes(deps.conversationsService))
+    .route('/api/v1', documentsRoutes(deps.documentsService, {
       maxUploadBytes: deps.maxUploadBytes,
     }));
 }

@@ -106,6 +106,12 @@ export class NotFoundError extends AppError {
   readonly title = 'Not found';
 }
 
+export class ConflictError extends AppError {
+  readonly status = 409;
+  readonly type = problemType.conflict;
+  readonly title = 'Conflict';
+}
+
 export class UpstreamError extends AppError {
   readonly status = 502;
   readonly type = problemType.upstream;
