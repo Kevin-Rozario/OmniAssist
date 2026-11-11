@@ -62,27 +62,36 @@ test.describe('signed-in shell', () => {
 
     failNext = true;
     await page.reload();
-    await expect(page.getByRole('heading', { name: 'OmniAssist AI' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'OmniAssist AI' })).toBeVisible();
     // Next's route announcer is also role="alert"; target the profile error only.
     await expect(page.getByRole('alert').filter({ hasText: 'Profile unavailable' })).toBeVisible();
     await page.getByRole('button', { name: 'Retry' }).click();
     await expect(page.getByText('Ada Admin')).toBeVisible();
     await expect(page.getByText('Admin', { exact: true })).toBeVisible();
 
+    const nav = page.getByRole('navigation', { name: 'Primary' });
+    await expect(page.getByRole('complementary')).toHaveCount(0);
+    await expect(nav.getByRole('link', { name: 'Chat' })).toHaveAttribute('aria-current', 'page');
+    await expect(nav.getByRole('link', { name: 'Knowledge Base' })).toBeVisible();
+
+    // The page content never grows wider than the 7xl column.
+    await page.setViewportSize({ width: 1920, height: 1000 });
+    const widths = await page.evaluate(() => ({
+      main: document.querySelector('main > div')!.getBoundingClientRect().width,
+      header: document.querySelector('header > div')!.getBoundingClientRect().width,
+    }));
+    expect(widths.main).toBeLessThanOrEqual(1280);
+    expect(widths.header).toBeLessThanOrEqual(1280);
+
     await page.setViewportSize({ width: 360, height: 800 });
     const phoneOverflow = await page.evaluate(() => {
       return document.documentElement.scrollWidth - document.documentElement.clientWidth;
     });
     expect(phoneOverflow).toBeLessThanOrEqual(1);
-    await expect(page.getByRole('button', { name: 'Open navigation' })).toBeVisible();
-    await expect(page.getByRole('navigation', { name: 'Primary' })).toBeHidden();
+    await expect(page.getByRole('link', { name: 'OmniAssist AI' })).toBeVisible();
+    await expect(nav.getByRole('link', { name: 'Chat' })).toBeVisible();
+    await expect(nav.getByRole('link', { name: 'Knowledge Base' })).toBeVisible();
 
-    await page.setViewportSize({ width: 1280, height: 800 });
-    await expect(page.getByRole('navigation', { name: 'Primary' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Open navigation' })).toBeHidden();
-
-    await page.setViewportSize({ width: 360, height: 800 });
-    await expectVisibleFocus(page, 'Open navigation');
     await expectVisibleFocus(page, 'Theme');
     await expectVisibleFocus(page, /user/i);
   });

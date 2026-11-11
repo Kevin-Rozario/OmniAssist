@@ -130,6 +130,7 @@ test.describe('knowledge base', () => {
     await page.goto('/');
 
     await expect(page.getByText('Mo Member')).toBeVisible();
+    await expect(page.getByText('User', { exact: true })).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Knowledge Base' })).toHaveCount(0);
 
     await page.goto('/knowledge-base');

@@ -25,7 +25,7 @@ export function KnowledgeBaseView() {
 
   if (me.isPending) {
     return (
-      <section className="max-w-3xl space-y-3" aria-busy="true">
+      <section className="space-y-3 py-6 sm:py-8" aria-busy="true">
         <Skeleton className="h-8 w-48" role="status" aria-label="Loading Knowledge Base" />
         <Skeleton className="h-4 w-72" />
       </section>
@@ -34,7 +34,7 @@ export function KnowledgeBaseView() {
 
   if (me.isError || !me.data) {
     return (
-      <section className="max-w-3xl" role="alert">
+      <section className="py-6 sm:py-8" role="alert">
         <h1 className="text-2xl font-semibold tracking-tight">Knowledge Base</h1>
         <p className="mt-2 text-sm text-destructive">
           Profile unavailable. Retry from the header to load this page.
@@ -45,7 +45,7 @@ export function KnowledgeBaseView() {
 
   if (me.data.role !== 'admin') {
     return (
-      <section className="max-w-3xl" role="alert">
+      <section className="py-6 sm:py-8" role="alert">
         <h1 className="text-2xl font-semibold tracking-tight">Knowledge Base</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           You do not have permission to manage the knowledge base.
@@ -107,7 +107,7 @@ function AdminKnowledgeBase() {
   }
 
   return (
-    <section className="max-w-3xl space-y-6">
+    <section className="space-y-6 py-6 sm:py-8">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Knowledge Base</h1>
         <p className="mt-2 text-sm text-muted-foreground">
@@ -212,9 +212,9 @@ function DocumentList({
   }
 
   return (
-    <ul className="divide-y border-y">
+    <ul className="divide-y rounded-2xl border bg-card/70 px-4 shadow-sm backdrop-blur sm:px-6">
       {documents.map(document => (
-        <li key={document.id} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-start sm:justify-between">
+        <li key={document.id} className="flex flex-col gap-3 py-4 transition-colors duration-200 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0 space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               <p className="truncate font-medium">{document.filename}</p>

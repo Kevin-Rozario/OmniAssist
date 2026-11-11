@@ -2,62 +2,46 @@
 
 import type { ReactNode } from 'react';
 import { UserButton } from '@clerk/nextjs';
-import { Button } from '@omni/ui/components/button';
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from '@omni/ui/components/sheet';
-import { MenuIcon } from 'lucide-react';
 import Link from 'next/link';
+import { BrandMark } from '@/components/brand';
 import { PrimaryNav } from '@/components/primary-nav';
 import { ThemeMenu } from '@/components/theme-menu';
 import { UserIdentity } from '@/components/user-identity';
 
+/** Every page lives in this one centred column, so the navbar and content line up. */
+const PAGE_WIDTH = 'mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8';
+
 export function AppShell({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-dvh flex-col">
-      <header className="flex h-14 shrink-0 items-center gap-2 border-b px-3">
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button type="button" variant="outline" size="icon" className="shrink-0 md:hidden" aria-label="Open navigation">
-              <MenuIcon aria-hidden="true" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="w-72">
-            <SheetHeader>
-              <SheetTitle>Navigation</SheetTitle>
-              <SheetDescription className="sr-only">Primary navigation links</SheetDescription>
-            </SheetHeader>
-            <PrimaryNav />
-          </SheetContent>
-        </Sheet>
-        <Link href="/" className="shrink-0 text-sm font-semibold tracking-tight">
-          OmniAssist
-        </Link>
-        <div className="ml-auto flex min-w-0 items-center gap-2">
-          <UserIdentity />
-          <ThemeMenu />
-          <UserButton
-            appearance={{
-              elements: {
-                userButtonTrigger: 'rounded-full focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:outline-none',
-              },
-            }}
-          />
+    <div className="flex h-dvh flex-col">
+      <header className="z-40 shrink-0 border-b bg-background/70 backdrop-blur-xl">
+        <div className={`${PAGE_WIDTH} flex flex-wrap items-center gap-x-6 gap-y-2 py-3 sm:min-h-16 sm:py-0`}>
+          <Link
+            href="/"
+            className="group flex shrink-0 items-center gap-2.5 rounded-lg outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          >
+            <BrandMark className="transition-transform duration-300 group-hover:rotate-6 group-hover:scale-105" />
+            <span className="text-base font-semibold tracking-tight">OmniAssist AI</span>
+          </Link>
+          <PrimaryNav className="order-last w-full sm:order-none sm:w-auto" />
+          <div className="ml-auto flex min-w-0 items-center gap-2 sm:gap-3">
+            <UserIdentity />
+            <ThemeMenu />
+            <UserButton
+              appearance={{
+                elements: {
+                  userButtonTrigger: 'rounded-full focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
+                },
+              }}
+            />
+          </div>
         </div>
       </header>
-      <div className="flex min-h-0 flex-1">
-        <aside className="hidden w-60 shrink-0 border-r md:block">
-          <PrimaryNav />
-        </aside>
-        <main className="min-w-0 flex-1 p-4 md:p-6">
+      <main className="min-h-0 flex-1 overflow-y-auto">
+        <div className={`${PAGE_WIDTH} h-full`}>
           {children}
-        </main>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }
