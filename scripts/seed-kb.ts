@@ -104,7 +104,7 @@ async function uploadFixture(
     filename,
   );
 
-  const response = await fetch(new URL('/v1/documents', apiUrl), {
+  const response = await fetch(new URL('/api/v1/documents', apiUrl), {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -142,7 +142,7 @@ async function main(): Promise<void> {
     process.stdout.write(`  - ${name}\n`);
 
   if (options.dryRun) {
-    process.stdout.write(`\nDry run only. Would POST each file to ${apiUrl}/v1/documents\n`);
+    process.stdout.write(`\nDry run only. Would POST each file to ${apiUrl}/api/v1/documents\n`);
     return;
   }
 
@@ -153,7 +153,7 @@ async function main(): Promise<void> {
     );
   }
 
-  process.stdout.write(`\nUploading to ${apiUrl}/v1/documents …\n`);
+  process.stdout.write(`\nUploading to ${apiUrl}/api/v1/documents …\n`);
   for (const name of fixtures) {
     const result = await uploadFixture(apiUrl, token, name);
     process.stdout.write(`  ✓ ${name} → ${result.id} (${result.status})\n`);

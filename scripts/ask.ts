@@ -97,7 +97,7 @@ async function main(): Promise<void> {
     throw new Error('A question is required. Run with --help for usage.');
 
   const apiUrl = (process.env.ASK_API_URL || 'http://127.0.0.1:3000').replace(/\/$/, '');
-  const endpoint = new URL('/v1/ask', apiUrl);
+  const endpoint = new URL('/api/v1/ask', apiUrl);
 
   if (options.dryRun) {
     process.stdout.write(`Dry run only. Would POST to ${endpoint}\n`);
