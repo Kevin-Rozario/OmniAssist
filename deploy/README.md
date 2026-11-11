@@ -7,6 +7,7 @@ The web app is hosted on Vercel. The API image is published to GHCR and run on t
 | `compose.yml`     | API container, published only on `127.0.0.1:3000`  |
 | `Caddyfile`       | Host Caddy config: existing site plus the API host |
 | `api.env.example` | Template for the API environment                   |
+| `.env`            | Optional, server only: `IMAGE_TAG=<commit-sha>`    |
 | `README.md`       | This runbook. Local setup is in the root README    |
 
 `api.env` is created on the server from the example. It is gitignored. Do not commit it.
@@ -74,7 +75,7 @@ The GHCR package is private even though the repository is public. Log in once wi
 docker login ghcr.io -u kevin-rozario
 docker compose pull
 docker compose up -d
-curl -fsS http://127.0.0.1:3000/health
+curl -fsS http://127.0.0.1:3000/api/health
 ```
 
 The local curl must succeed before Caddy changes. Then install the Caddyfile. It keeps `kevinrozario.com` and `www.kevinrozario.com` serving `/var/www/html`, and adds the API host:
@@ -88,21 +89,28 @@ sudo systemctl reload caddy
 
 ## Later releases
 
-From `~/OmniAssist` on the `production` branch:
+1. On your computer, push to `main`, then to `production` (`git push origin main:production`). CI runs, and the image workflow publishes `ghcr.io/kevin-rozario/omniassist-api:<commit-sha>` and `:latest`. Wait for that run to finish.
+2. Apply any new database migrations from your computer (see [Knowledge base and Inngest](#knowledge-base-and-inngest)). Do this before starting an API version that needs them.
+3. On the VPS, from `~/OmniAssist` on the `production` branch:
 
 ```sh
 git pull
 cd deploy
+echo "IMAGE_TAG=<commit-sha>" > .env
 docker compose pull
 docker compose up -d
+curl -fsS http://127.0.0.1:3000/api/health
 ```
 
-`IMAGE_TAG` defaults to `latest`. To roll out a specific build:
+Reload Caddy only when `deploy/Caddyfile` changed. Repeat the copy, validate, and reload from the first boot.
 
-```sh
-IMAGE_TAG=<commit-sha> docker compose pull
-IMAGE_TAG=<commit-sha> docker compose up -d
-```
+### Image tag
+
+Compose reads `IMAGE_TAG` from `deploy/.env`, a separate file from `api.env`. `api.env` only feeds variables into the container and is not used to fill in `compose.yml`. `.env` is gitignored.
+
+- Set it to a commit SHA to pin a build. Nothing changes on the server until you edit the line and run `docker compose pull` and `docker compose up -d` again.
+- Leave it unset to follow `latest`, which moves on every push to `production`. Prefer a pinned SHA in production.
+- Get the SHA with `git rev-parse --short HEAD` on `production`.
 
 After changing `api.env`, recreate the API container:
 
@@ -110,15 +118,14 @@ After changing `api.env`, recreate the API container:
 docker compose up -d --force-recreate
 ```
 
-Reload Caddy only when `deploy/Caddyfile` changed. Repeat the copy, validate, and reload from the first boot.
-
 ## Rollback
 
-`latest` moves. Roll back by starting the previous commit SHA, which the image workflow also pushes:
+Put the previous commit SHA in `deploy/.env` and start it. The image workflow keeps every SHA tag.
 
 ```sh
-IMAGE_TAG=<previous-commit-sha> docker compose pull
-IMAGE_TAG=<previous-commit-sha> docker compose up -d
+echo "IMAGE_TAG=<previous-commit-sha>" > .env
+docker compose pull
+docker compose up -d
 ```
 
 The API container is limited to 512 MB. Raise `mem_limit` in `compose.yml` if the kernel OOM-kills it. Certificates stay with the host Caddy, not in a Compose volume.
@@ -168,9 +175,9 @@ SEED_BEARER_TOKEN=<admin-clerk-jwt> SEED_API_URL=http://127.0.0.1:3000 pnpm seed
 ## Checks
 
 ```sh
-curl -fsS https://api.omniassist.kevinrozario.com/health
-curl -fsS https://api.omniassist.kevinrozario.com/ready
-curl -fsSI https://api.omniassist.kevinrozario.com/docs
+curl -fsS https://api.omniassist.kevinrozario.com/api/health
+curl -fsS https://api.omniassist.kevinrozario.com/api/ready
+curl -fsSI https://api.omniassist.kevinrozario.com/api/docs
 ```
 
 `/api/health` returns `{"status":"ok"}` and does not touch the database. `/api/ready` returns `{"status":"ok","checks":{"database":"ok"}}` only when `select 1` succeeds. `/api/docs` returns HTTP 200 with `content-type: text/html` and a `via: 1.1 Caddy` header. `/api/inngest` is the Inngest serve path (authenticated by Inngest signing key, not Clerk).

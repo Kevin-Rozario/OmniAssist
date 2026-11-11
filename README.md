@@ -38,6 +38,8 @@ Fill both files, then apply the database migrations:
 pnpm --filter @omni/db db:migrate
 ```
 
+`db:migrate` reads `DATABASE_URL_DIRECT` from your shell or, when it is not set there, from `apps/api/.env`. After changing the schema in `packages/db/src/schema`, run `pnpm --filter @omni/db db:generate` and commit the new migration files.
+
 Start everything (API on port 3000, web on port 3001):
 
 ```sh
@@ -136,6 +138,10 @@ pnpm seed-kb --with-adversarial   # dev knowledge base only
 | `pnpm test:e2e` | Playwright (needs the Clerk test setup, not a running API) |
 | `pnpm --filter @omni/api start` | Run the built API (export the env vars first; it does not load `.env`) |
 | `pnpm --filter @omni/db db:generate` | Generate a migration after a schema change |
+
+## Releasing
+
+Push to `main` (CI runs lint, typecheck, tests and build), then to `production`, which publishes the API image to GHCR and deploys the web app on Vercel. Apply new migrations first, then pin the new image tag on the VPS. The exact steps, rollback and the image tag are in [`deploy/README.md`](deploy/README.md#later-releases).
 
 ## Health checks
 
