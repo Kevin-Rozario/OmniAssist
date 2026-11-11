@@ -142,3 +142,27 @@ describe('buildDirectPrompt', () => {
     );
   });
 });
+
+describe('answer length and format', () => {
+  it.each([
+    [
+      'kb',
+      buildKbAnswerPrompt('q', sources),
+    ],
+    [
+      'web',
+      buildWebAnswerPrompt('q', sources),
+    ],
+    [
+      'fallback',
+      buildFallbackPrompt('q'),
+    ],
+    [
+      'direct',
+      buildDirectPrompt('q'),
+    ],
+  ])('asks for a short, plain-text %s answer', (_name, prompt) => {
+    expect(prompt.system).toContain('at most about 120 words');
+    expect(prompt.system).toContain('Write plain text only. Do not use Markdown');
+  });
+});
