@@ -82,8 +82,11 @@ export type GraphEvent
     | ({ type: 'citations' } & AskCitationsEvent)
     | ({ type: 'token' } & AskTokenEvent);
 
-/** Every event of an ask stream. The service adds `done` and `error` around the graph's events. */
+/**
+ * Every event of an ask stream. The service adds `done` and `error` around the graph's events.
+ * The error payload is nested because it has its own `type` (the problem URI).
+ */
 export type AskEvent
   = | GraphEvent
     | ({ type: 'done' } & AskDoneEvent)
-    | ({ type: 'error' } & AskErrorEvent);
+    | { type: 'error'; error: AskErrorEvent };
