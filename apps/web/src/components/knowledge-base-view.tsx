@@ -1,6 +1,7 @@
 'use client';
 
 import type { DocumentSummary } from '@omni/types';
+import type { BatchProgress } from '@/lib/upload-batch';
 import { Badge } from '@omni/ui/components/badge';
 import { Button } from '@omni/ui/components/button';
 import { Skeleton } from '@omni/ui/components/skeleton';
@@ -14,7 +15,7 @@ import {
   useDeleteDocument,
   useDocuments,
   useReingestDocument,
-  useUploadDocument,
+  useUploadDocuments,
 } from '@/lib/use-documents';
 import { useMe } from '@/lib/use-me';
 
@@ -59,27 +60,35 @@ export function KnowledgeBaseView() {
 
 function AdminKnowledgeBase() {
   const documents = useDocuments();
-  const upload = useUploadDocument();
+  const upload = useUploadDocuments();
   const remove = useDeleteDocument();
   const reingest = useReingestDocument();
   const fileInputId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<BatchProgress | null>(null);
 
-  async function onFileSelected(fileList: FileList | null) {
-    const file = fileList?.[0];
-    if (!file)
+  async function onFilesSelected(fileList: FileList | null) {
+    const files = Array.from(fileList ?? []);
+    if (files.length === 0)
       return;
 
     setActionError(null);
     try {
-      await upload.mutateAsync(file);
+      const { failures } = await upload.mutateAsync({ files, onProgress: setProgress });
+      if (failures.length > 0) {
+        setActionError(
+          `${failures.length} of ${files.length} files could not be uploaded: ${
+            failures.map(failure => `${failure.filename} (${errorMessage(failure.error)})`).join('; ')}`,
+        );
+      }
     }
     catch (error) {
       setActionError(errorMessage(error));
     }
     finally {
+      setProgress(null);
       if (fileInputRef.current)
         fileInputRef.current.value = '';
     }
@@ -111,7 +120,7 @@ function AdminKnowledgeBase() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Knowledge Base</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Upload Markdown, PDF, text, or Word files. Ingestion status updates as each document is processed.
+          Upload Markdown, PDF, text, or Word files. Select several at once with Shift or Command. Each file is processed on its own and its status updates as it goes.
         </p>
       </div>
 
@@ -122,17 +131,20 @@ function AdminKnowledgeBase() {
           type="file"
           className="sr-only"
           accept={ACCEPTED_UPLOADS}
-          onChange={event => void onFileSelected(event.target.files)}
+          multiple
+          onChange={event => void onFilesSelected(event.target.files)}
         />
         <Button
           type="button"
           disabled={upload.isPending}
           onClick={() => fileInputRef.current?.click()}
         >
-          {upload.isPending ? 'Uploading…' : 'Upload document'}
+          {upload.isPending
+            ? `Uploading ${progress?.done ?? 0} of ${progress?.total ?? '…'}…`
+            : 'Upload documents'}
         </Button>
         <label htmlFor={fileInputId} className="sr-only">
-          Choose a knowledge-base file
+          Choose knowledge-base files
         </label>
       </div>
 

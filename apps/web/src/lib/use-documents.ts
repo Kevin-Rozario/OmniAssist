@@ -1,6 +1,7 @@
 'use client';
 
 import type { DocumentStatus } from '@omni/types';
+import type { BatchProgress } from '@/lib/upload-batch';
 import { useAuth } from '@clerk/nextjs';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -9,6 +10,7 @@ import {
   reingestDocument,
   uploadDocument,
 } from '@/lib/api-client';
+import { uploadBatch } from '@/lib/upload-batch';
 import { useMe } from '@/lib/use-me';
 
 const documentsQueryKey = ['documents'] as const;
@@ -35,13 +37,15 @@ export function useDocuments() {
   });
 }
 
-export function useUploadDocument() {
+export function useUploadDocuments() {
   const { getToken } = useAuth();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (file: File) => uploadDocument(getToken, file),
-    onSuccess: async () => {
+    mutationFn: ({ files, onProgress }: { files: File[]; onProgress?: (progress: BatchProgress) => void }) =>
+      uploadBatch(files, file => uploadDocument(getToken, file), onProgress),
+    // Refresh even when some files failed, so the ones that did upload appear.
+    onSettled: async () => {
       await queryClient.invalidateQueries({ queryKey: documentsQueryKey });
     },
   });
