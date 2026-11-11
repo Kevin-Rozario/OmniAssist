@@ -1,11 +1,13 @@
 import type { AppType } from '@omni/api/app';
 import type {
+  AskStreamEvent,
   DocumentDetail,
   DocumentListResponse,
   MeResponse,
   ProblemDetails,
 } from '@omni/types';
 import {
+  createAskStreamParser,
   DocumentDetailSchema,
   DocumentListResponseSchema,
   MeResponseSchema,
@@ -71,6 +73,72 @@ export async function reingestDocument(
     param: { id },
   });
   return DocumentDetailSchema.parse(await response.json());
+}
+
+/** The ask stream broke: it was malformed, or it closed without a `done` or `error` event. */
+export class AskStreamError extends Error {
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = 'AskStreamError';
+  }
+}
+
+/**
+ * Ask one question and yield the validated stream events in order.
+ *
+ * A rejected request throws `ApiError` before the first event. A broken stream throws
+ * `AskStreamError`. Aborting `signal` rejects with the platform's `AbortError`, unchanged.
+ * The generator ends after the `done` or `error` event.
+ */
+export async function* askStream(
+  getToken: GetToken,
+  question: string,
+  signal?: AbortSignal,
+): AsyncGenerator<AskStreamEvent, void, undefined> {
+  const response = await authenticatedFetch(getToken)(
+    `${env.NEXT_PUBLIC_API_URL.replace(/\/+$/, '')}/v1/ask`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
+      body: JSON.stringify({ question }),
+      signal,
+    },
+  );
+  if (!response.body)
+    throw new AskStreamError('The answer stream had no body.');
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  const parser = createAskStreamParser();
+
+  function parse(read: () => AskStreamEvent[]): AskStreamEvent[] {
+    try {
+      return read();
+    }
+    catch (cause) {
+      throw new AskStreamError('The answer stream was malformed.', { cause });
+    }
+  }
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      const events = parse(() => done
+        ? parser.push(decoder.decode()).concat(parser.end())
+        : parser.push(decoder.decode(value, { stream: true })));
+
+      for (const event of events) {
+        yield event;
+        if (event.event === 'done' || event.event === 'error')
+          return;
+      }
+      if (done)
+        throw new AskStreamError('The answer stream ended before it completed.');
+    }
+  }
+  finally {
+    await reader.cancel().catch(() => {});
+  }
 }
 
 function authenticatedFetch(getToken: GetToken): typeof fetch {
