@@ -2,6 +2,17 @@
 
 Next.js app for OmniAssist AI. Signed-in pages use the responsive shell and load the current user from the API. Admins also get a Knowledge Base page (`/knowledge-base`) to upload, retry and delete documents; members see a forbidden state.
 
+## Chat
+
+The Home page (`/`) is the chat screen for every signed-in user. Type a question and press Enter (Shift+Enter adds a new line); the browser calls `POST /v1/ask` on `NEXT_PUBLIC_API_URL` with the Clerk token and reads the server-sent event stream directly.
+
+- Progress ("Searching the knowledge base", and so on) shows until the first words arrive; the answer then streams in as plain text.
+- Sources are numbered under the answer, with a badge for where the answer came from and its confidence. Fallback answers carry a notice that they are not backed by company documents; direct answers show no confidence.
+- Stop ends the request and keeps the text so far. Failures show a friendly message with a retry and, when the API sent one, a support reference.
+- The conversation lives only in the open page: reloading clears it, and each question is sent on its own.
+
+The pieces are `lib/api-client.ts` (`askStream`), `lib/chat-state.ts` (reducer), `lib/chat-controller.ts` and `lib/use-chat.ts` (wiring and cancellation), `lib/chat-copy.ts` (wording), and `components/chat-*.tsx`. `e2e/chat.spec.ts` drives the screen with a hand-fed stream, so it needs the Clerk test setup but not a running API.
+
 ## Setup
 
 From the repository root, on Node 24:
