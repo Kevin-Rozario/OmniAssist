@@ -14,7 +14,8 @@ export function useChat() {
   }, [getToken]);
 
   const [controller] = useState(() => createChatController({
-    stream: (question, signal) => askStream(() => getTokenRef.current(), question, signal),
+    stream: (question, signal, conversationId) =>
+      askStream(() => getTokenRef.current(), question, signal, conversationId),
   }));
 
   const state = useSyncExternalStore(controller.subscribe, controller.getState, controller.getState);
@@ -24,10 +25,13 @@ export function useChat() {
 
   return {
     messages: state.messages,
+    conversationId: state.conversationId,
     isBusy: isChatBusy(state),
     ask: useCallback((question: string) => controller.ask(question), [controller]),
     retry: useCallback((id: string) => controller.retry(id), [controller]),
     stop: controller.stop,
-    clear: controller.clear,
+    newChat: controller.newChat,
+    open: controller.open,
+    deleted: controller.deleted,
   };
 }

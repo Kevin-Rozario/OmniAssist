@@ -53,7 +53,7 @@ test.describe('knowledge base', () => {
       return;
     }
 
-    await page.route(new URL('/v1/me', apiUrl()).href, async (route) => {
+    await page.route(new URL('/api/v1/me', apiUrl()).href, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -61,7 +61,7 @@ test.describe('knowledge base', () => {
       });
     });
 
-    await page.route(new URL('/v1/documents', apiUrl()).href, async (route) => {
+    await page.route(new URL('/api/v1/documents', apiUrl()).href, async (route) => {
       if (route.request().method() === 'GET') {
         await route.fulfill({
           status: 200,
@@ -101,7 +101,7 @@ test.describe('knowledge base', () => {
       return;
     }
 
-    await page.route(new URL('/v1/me', apiUrl()).href, async (route) => {
+    await page.route(new URL('/api/v1/me', apiUrl()).href, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -109,7 +109,7 @@ test.describe('knowledge base', () => {
       });
     });
 
-    const documentsBase = new URL('/v1/documents', apiUrl()).href;
+    const documentsBase = new URL('/api/v1/documents', apiUrl()).href;
     let documentsRequested = false;
     await page.route(url => url.toString().startsWith(documentsBase), async (route) => {
       documentsRequested = true;

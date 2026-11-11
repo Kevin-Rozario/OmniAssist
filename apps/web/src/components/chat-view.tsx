@@ -8,10 +8,11 @@ import {
   ConversationScrollButton,
 } from '@omni/ui/components/conversation';
 import { Suggestion } from '@omni/ui/components/suggestion';
-import { Trash2Icon } from 'lucide-react';
+import { SquarePenIcon } from 'lucide-react';
 import { BrandMark } from '@/components/brand';
 import { ChatComposer } from '@/components/chat-composer';
 import { ChatMessage } from '@/components/chat-message';
+import { HistorySheet } from '@/components/history-sheet';
 import { useChat } from '@/lib/use-chat';
 
 const EXAMPLE_QUESTIONS = [
@@ -21,7 +22,7 @@ const EXAMPLE_QUESTIONS = [
 ] as const;
 
 export function ChatView() {
-  const { messages, isBusy, ask, retry, stop, clear } = useChat();
+  const { messages, conversationId, isBusy, ask, retry, stop, newChat, open, deleted } = useChat();
 
   return (
     <section aria-label="Chat" className="mx-auto flex h-full w-full max-w-4xl flex-col gap-3 py-4 sm:gap-4 sm:py-6">
@@ -30,14 +31,17 @@ export function ChatView() {
           <span className="sr-only">Chat: </span>
           Ask the IT support copilot a question
         </h1>
-        {messages.length > 0
-          ? (
-              <Button type="button" variant="ghost" size="sm" onClick={clear} className="shrink-0 text-muted-foreground transition-colors duration-200">
-                <Trash2Icon aria-hidden="true" />
-                <span className="sr-only sm:not-sr-only">Clear conversation</span>
-              </Button>
-            )
-          : null}
+        <div className="flex shrink-0 items-center gap-1">
+          <HistorySheet openId={conversationId} onOpen={open} onDeleted={deleted} />
+          {messages.length > 0
+            ? (
+                <Button type="button" variant="ghost" size="sm" onClick={newChat} className="shrink-0 text-muted-foreground transition-colors duration-200">
+                  <SquarePenIcon aria-hidden="true" />
+                  <span className="sr-only sm:not-sr-only">New chat</span>
+                </Button>
+              )
+            : null}
+        </div>
       </div>
 
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border bg-card/70 shadow-sm backdrop-blur">
@@ -63,7 +67,7 @@ export function ChatView() {
                   </ConversationEmptyState>
                 )
               : messages.map(message => (
-                  <ChatMessage key={message.id} message={message} canRetry={!isBusy} onRetry={retry} />
+                  <ChatMessage key={message.id} message={message} canRetry={!isBusy} onRetry={retry} onNewChat={newChat} />
                 ))}
           </ConversationContent>
           <ConversationScrollButton />

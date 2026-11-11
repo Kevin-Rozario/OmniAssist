@@ -142,3 +142,38 @@ it('shows a friendly error with retry and request id, without raw text', () => {
   expect(html).toContain('Reference: req-42');
   expect(html).toContain('Try again');
 });
+
+function renderError(kind: 'conversation_full' | 'conversation_missing' | 'unavailable', onNewChat?: () => void): string {
+  const message: ChatMessageData = {
+    id: 'a',
+    question: 'and on a Mac?',
+    status: 'error',
+    text: '',
+    sources: [],
+    error: { kind },
+  };
+  return renderToStaticMarkup(<ChatMessage message={message} canRetry onRetry={() => {}} onNewChat={onNewChat} />);
+}
+
+it('explains a full conversation and offers New chat instead of a retry', () => {
+  const html = renderError('conversation_full', () => {});
+
+  expect(html).toContain('This conversation has reached its limit. Start a new chat to keep asking.');
+  expect(html).toContain('New chat');
+  expect(html).not.toContain('Try again');
+});
+
+it('offers New chat when the conversation is no longer available', () => {
+  const html = renderError('conversation_missing', () => {});
+
+  expect(html).toContain('no longer available');
+  expect(html).toContain('New chat');
+  expect(html).not.toContain('Try again');
+});
+
+it('still offers Try again for an ordinary failure', () => {
+  const html = renderError('unavailable', () => {});
+
+  expect(html).toContain('Try again');
+  expect(html).not.toContain('New chat');
+});

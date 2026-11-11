@@ -197,7 +197,7 @@ it('replaces a failed message in place on retry', () => {
 });
 
 it('appends on retry when the message to replace is gone', () => {
-  const state = run(submit('a'), { type: 'clear' }, {
+  const state = run(submit('a'), { type: 'newChat' }, {
     type: 'submit',
     id: 'b',
     question: 'q',
@@ -207,8 +207,8 @@ it('appends on retry when the message to replace is gone', () => {
   expect(state.messages.map(message => message.id)).toEqual(['b']);
 });
 
-it('clears the conversation, even mid-answer, and then ignores its late events', () => {
-  const cleared = run(submit('a'), token('a', 'x'), { type: 'clear' });
+it('starts a new chat, even mid-answer, and then ignores late events', () => {
+  const cleared = run(submit('a'), token('a', 'x'), { type: 'newChat' });
 
   expect(cleared).toBe(initialChatState);
   expect(chatReducer(cleared, token('a', 'late'))).toBe(cleared);
@@ -222,4 +222,83 @@ it('does not mutate the previous state', () => {
   chatReducer(before, token('a', 'x'));
 
   expect(before).toEqual(snapshot);
+});
+
+it('records the conversation id from done and keeps it across later questions', () => {
+  const state = run(
+    submit('a'),
+    {
+      type: 'done',
+      id: 'a',
+      answerSource: 'kb',
+      confidence: 'high',
+      conversationId: 'conv-1',
+    },
+    submit('b'),
+  );
+
+  expect(state.conversationId).toBe('conv-1');
+  expect(state.messages.map(message => message.id)).toEqual(['a', 'b']);
+});
+
+it('keeps no conversation id after a failed first answer', () => {
+  const state = run(submit('a'), {
+    type: 'fail',
+    id: 'a',
+    error: { kind: 'unavailable' },
+  });
+
+  expect(state.conversationId).toBeUndefined();
+});
+
+it('loads saved turns as finished messages and makes the conversation current', () => {
+  const state = run(submit('a'), {
+    type: 'load',
+    conversationId: 'conv-2',
+    turns: [
+      {
+        id: 't1',
+        question: 'q1',
+        answer: 'a1',
+        answerSource: 'web',
+        sourceConfidence: 'medium',
+        sources: [
+          {
+            n: 1,
+            kind: 'web',
+            title: 'Docs',
+            url: 'https://example.com',
+          },
+        ],
+        createdAt: '2026-01-01T00:00:00.000Z',
+      },
+    ],
+  });
+
+  expect(state.conversationId).toBe('conv-2');
+  expect(state.messages).toEqual([
+    {
+      id: 't1',
+      question: 'q1',
+      status: 'done',
+      text: 'a1',
+      sources: [
+        {
+          n: 1,
+          kind: 'web',
+          title: 'Docs',
+          url: 'https://example.com',
+        },
+      ],
+      answerSource: 'web',
+      confidence: 'medium',
+    },
+  ]);
+  expect(isChatBusy(state)).toBe(false);
+});
+
+it('forgets the conversation on new chat even when the screen is empty', () => {
+  const state = run({ type: 'load', conversationId: 'conv-3', turns: [] }, { type: 'newChat' });
+
+  expect(state).toBe(initialChatState);
 });

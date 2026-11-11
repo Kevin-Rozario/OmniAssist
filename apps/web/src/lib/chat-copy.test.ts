@@ -6,7 +6,9 @@ import {
   ERROR_MESSAGES,
   errorMessage,
   FALLBACK_NOTICE,
+  historyErrorMessage,
   isAbort,
+  needsNewChat,
   stageLabel,
   toChatError,
 } from './chat-copy';
@@ -29,6 +31,8 @@ it('describes every stage in plain words', () => {
 it.each([
   [400, 'invalid_question'],
   [401, 'session_expired'],
+  [404, 'conversation_missing'],
+  [409, 'conversation_full'],
   [500, 'unavailable'],
   [503, 'unavailable'],
 ] as const)('maps HTTP %i to %s and keeps only the request id', (status, kind) => {
@@ -83,4 +87,29 @@ it('warns that a fallback answer is not backed by company documents', () => {
 it('shows no confidence for a direct answer', () => {
   expect(answerOrigin('direct', 'not_applicable').confidence).toBeNull();
   expect(answerOrigin('direct', 'high').confidence).toBeNull();
+});
+
+it('explains a full conversation in plain words and points to a new chat', () => {
+  const shown = errorMessage(toChatError(apiError(409)));
+
+  expect(shown).toMatch(/limit/i);
+  expect(shown).toMatch(/new chat/i);
+  expect(shown).not.toMatch(/409|conflict/i);
+});
+
+it('words History failures plainly and never shows server text', () => {
+  expect(historyErrorMessage(apiError(404), 'open')).toBe('That conversation no longer exists.');
+  expect(historyErrorMessage(apiError(401), 'load')).toMatch(/session has expired/);
+  for (const action of ['load', 'open', 'rename', 'delete'] as const) {
+    const shown = historyErrorMessage(apiError(500), action);
+    expect(shown).not.toMatch(/provider|secret/i);
+    expect(shown.length).toBeGreaterThan(10);
+  }
+  expect(historyErrorMessage(new TypeError('Failed to fetch'), 'rename')).toMatch(/rename/);
+});
+
+it('sends the user to a new chat only when the conversation cannot continue', () => {
+  expect(needsNewChat({ kind: 'conversation_full' })).toBe(true);
+  expect(needsNewChat({ kind: 'conversation_missing' })).toBe(true);
+  expect(needsNewChat({ kind: 'unavailable' })).toBe(false);
 });

@@ -1,11 +1,15 @@
-import type { AskStreamEvent } from '@omni/types';
+import type { AskStreamEvent, ConversationDetail } from '@omni/types';
 import type { ChatAction, ChatState } from './chat-state';
 import { ASK_QUESTION_MAX_LENGTH } from '@omni/types';
 import { isAbort, toChatError } from './chat-copy';
 import { chatReducer, initialChatState, isChatBusy } from './chat-state';
 
-/** Starts one answer. Each question is sent on its own, with no earlier messages. */
-export type AskStream = (question: string, signal: AbortSignal) => AsyncIterable<AskStreamEvent>;
+/** Starts one answer, in the given saved conversation or, when undefined, a new one. */
+export type AskStream = (
+  question: string,
+  signal: AbortSignal,
+  conversationId: string | undefined,
+) => AsyncIterable<AskStreamEvent>;
 
 export interface ChatController {
   getState: () => ChatState;
@@ -16,8 +20,12 @@ export interface ChatController {
   retry: (id: string) => boolean;
   /** End the running answer, keeping the text so far. */
   stop: () => void;
-  /** End the running answer and empty the conversation. */
-  clear: () => void;
+  /** End the running answer and empty the screen; the next question starts a new conversation. */
+  newChat: () => void;
+  /** End the running answer and show a saved conversation, which new questions then continue. */
+  open: (conversation: ConversationDetail) => void;
+  /** Tell the controller a conversation was deleted; if it is the open one the screen is emptied. */
+  deleted: (conversationId: string) => void;
   /** End the running request without touching the conversation, for when the page goes away. */
   abort: () => void;
 }
@@ -71,7 +79,7 @@ export function createChatController(options: ChatControllerOptions): ChatContro
     const live = () => !abort.signal.aborted && running === current;
 
     try {
-      for await (const event of stream(question, abort.signal)) {
+      for await (const event of stream(question, abort.signal, state.conversationId)) {
         if (!live())
           return;
         switch (event.event) {
@@ -90,6 +98,7 @@ export function createChatController(options: ChatControllerOptions): ChatContro
               id,
               answerSource: event.data.answerSource,
               confidence: event.data.sourceConfidence,
+              conversationId: event.data.conversationId,
             });
             break;
           case 'error':
@@ -152,9 +161,19 @@ export function createChatController(options: ChatControllerOptions): ChatContro
       if (current)
         dispatch({ type: 'stop', id: current.id });
     },
-    clear() {
+    newChat() {
       endRunning();
-      dispatch({ type: 'clear' });
+      dispatch({ type: 'newChat' });
+    },
+    open(conversation) {
+      endRunning();
+      dispatch({ type: 'load', conversationId: conversation.id, turns: conversation.turns });
+    },
+    deleted(conversationId) {
+      if (state.conversationId !== conversationId)
+        return;
+      endRunning();
+      dispatch({ type: 'newChat' });
     },
     abort() {
       endRunning();

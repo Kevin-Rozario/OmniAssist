@@ -1,4 +1,4 @@
-import type { AskStreamEvent } from '@omni/types';
+import type { AskStreamEvent, ConversationDetail } from '@omni/types';
 import type { ChatController } from './chat-controller';
 import { ASK_QUESTION_MAX_LENGTH } from '@omni/types';
 import { expect, it, vi } from 'vitest';
@@ -12,6 +12,7 @@ type Item
 
 interface Call {
   question: string;
+  conversationId: string | undefined;
   signal: AbortSignal;
   push: (event: AskStreamEvent) => void;
   end: () => void;
@@ -21,7 +22,7 @@ interface Call {
 /** A stream the test drives by hand. Honours abort unless told not to. */
 function fakeStream({ honorAbort = true } = {}) {
   const calls: Call[] = [];
-  const stream = vi.fn((question: string, signal: AbortSignal) => {
+  const stream = vi.fn((question: string, signal: AbortSignal, conversationId: string | undefined) => {
     const queue: Item[] = [];
     let wake: (() => void) | undefined;
     const send = (item: Item) => {
@@ -30,6 +31,7 @@ function fakeStream({ honorAbort = true } = {}) {
     };
     calls.push({
       question,
+      conversationId,
       signal,
       push: event => send({ type: 'event', event }),
       end: () => send({ type: 'end' }),
@@ -154,7 +156,9 @@ it('sends the trimmed question on its own, and only that', async () => {
   controller.ask('second question');
 
   expect(stream.mock.calls.map(([question]) => question)).toEqual(['first question', 'second question']);
-  expect(stream.mock.calls[1]).toHaveLength(2);
+  // Earlier messages are never resent: the server keeps the conversation, the client sends its id.
+  expect(stream.mock.calls[1]).toHaveLength(3);
+  expect(stream.mock.calls[1]?.[2]).toBeUndefined();
 });
 
 it.each([
@@ -339,13 +343,13 @@ it('only retries failed answers, and not while busy', async () => {
   expect(controller.retry('m2')).toBe(false);
 });
 
-it('clears the conversation mid-answer, aborts, and ignores late events', async () => {
+it('starts a new chat mid-answer, aborts, and ignores late events', async () => {
   const { controller, calls } = setup({ honorAbort: false });
 
   controller.ask('hi');
   calls[0]?.push(token('x'));
   await tick();
-  controller.clear();
+  controller.newChat();
   calls[0]?.push(token('late'));
   calls[0]?.push(done);
   await tick();
@@ -369,4 +373,138 @@ it('aborts the request when the page goes away, without changing the conversatio
   expect(calls[0]?.signal.aborted).toBe(true);
   expect(listener).not.toHaveBeenCalled();
   expect(first(controller)).toMatchObject({ status: 'streaming', text: 'x' });
+});
+
+const CONVERSATION_ID = '550e8400-e29b-41d4-a716-446655440000';
+const doneSaved: AskStreamEvent = {
+  event: 'done',
+  data: { answerSource: 'kb', sourceConfidence: 'high', conversationId: CONVERSATION_ID },
+};
+
+const saved: ConversationDetail = {
+  id: CONVERSATION_ID,
+  title: 'VPN',
+  updatedAt: '2026-01-01T00:00:00.000Z',
+  turns: [
+    {
+      id: '650e8400-e29b-41d4-a716-446655440001',
+      question: 'How do I set up the VPN?',
+      answer: 'Install the client [1].',
+      answerSource: 'kb',
+      sourceConfidence: 'high',
+      sources: [
+        {
+          n: 1,
+          kind: 'kb',
+          documentId: 'doc-1',
+          filename: 'vpn.md',
+        },
+      ],
+      createdAt: '2026-01-01T00:00:00.000Z',
+    },
+  ],
+};
+
+it('sends the saved conversation id with a follow-up, but not with the first question', async () => {
+  const { controller, calls } = setup();
+
+  controller.ask('first');
+  expect(calls[0]?.conversationId).toBeUndefined();
+  calls[0]?.push(token('x'));
+  calls[0]?.push(doneSaved);
+  await tick();
+  expect(controller.getState().conversationId).toBe(CONVERSATION_ID);
+
+  controller.ask('and on a Mac?');
+  expect(calls[1]?.conversationId).toBe(CONVERSATION_ID);
+});
+
+it('starts fresh after a failed first answer, because nothing was saved', async () => {
+  const { controller, calls } = setup();
+
+  controller.ask('first');
+  calls[0]?.fail(new TypeError('offline'));
+  await tick();
+  expect(controller.getState().conversationId).toBeUndefined();
+
+  expect(controller.retry('m1')).toBe(true);
+  expect(calls[1]?.conversationId).toBeUndefined();
+});
+
+it('shows a saved conversation with sources and origin, and continues it', async () => {
+  const { controller, calls } = setup();
+
+  controller.open(saved);
+  expect(controller.getState().messages).toEqual([
+    {
+      id: '650e8400-e29b-41d4-a716-446655440001',
+      question: 'How do I set up the VPN?',
+      status: 'done',
+      text: 'Install the client [1].',
+      sources: [
+        {
+          n: 1,
+          kind: 'kb',
+          documentId: 'doc-1',
+          filename: 'vpn.md',
+        },
+      ],
+      answerSource: 'kb',
+      confidence: 'high',
+    },
+  ]);
+
+  controller.ask('and on a Mac?');
+  expect(calls[0]?.conversationId).toBe(CONVERSATION_ID);
+});
+
+it('stops a running answer before opening another conversation', async () => {
+  const { controller, calls } = setup({ honorAbort: false });
+
+  controller.ask('hi');
+  calls[0]?.push(token('x'));
+  await tick();
+  controller.open(saved);
+  calls[0]?.push(token('late'));
+  calls[0]?.push(doneSaved);
+  await tick();
+
+  expect(calls[0]?.signal.aborted).toBe(true);
+  expect(controller.getState().messages).toHaveLength(1);
+  expect(controller.getState().messages[0]?.text).toBe('Install the client [1].');
+  expect(controller.getState().conversationId).toBe(CONVERSATION_ID);
+});
+
+it('empties the screen and forgets the conversation on new chat', async () => {
+  const { controller, calls } = setup();
+
+  controller.open(saved);
+  controller.newChat();
+  expect(controller.getState()).toEqual({ messages: [] });
+
+  controller.ask('fresh');
+  expect(calls[0]?.conversationId).toBeUndefined();
+});
+
+it('returns to the empty state when the open conversation is deleted, even mid-answer', async () => {
+  const { controller, calls } = setup({ honorAbort: false });
+
+  controller.open(saved);
+  controller.ask('more');
+  calls[0]?.push(token('x'));
+  await tick();
+  controller.deleted(CONVERSATION_ID);
+
+  expect(calls[0]?.signal.aborted).toBe(true);
+  expect(controller.getState()).toEqual({ messages: [] });
+});
+
+it('leaves the screen alone when a different conversation is deleted', () => {
+  const { controller } = setup();
+
+  controller.open(saved);
+  controller.deleted('750e8400-e29b-41d4-a716-446655440009');
+
+  expect(controller.getState().conversationId).toBe(CONVERSATION_ID);
+  expect(controller.getState().messages).toHaveLength(1);
 });

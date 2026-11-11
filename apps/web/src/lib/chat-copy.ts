@@ -17,6 +17,8 @@ export function stageLabel(stage: AskStage): string {
 export const ERROR_MESSAGES = {
   invalid_question: 'That question couldn\'t be sent. Make sure it isn\'t empty or too long, then try again.',
   session_expired: 'Your session has expired. Reload the page or sign in again.',
+  conversation_full: 'This conversation has reached its limit. Start a new chat to keep asking.',
+  conversation_missing: 'This conversation is no longer available. Start a new chat to continue.',
   unavailable: 'Something went wrong on our side. Please try again.',
   stream_failed: 'The connection was interrupted before the answer finished.',
   answer_failed: 'We couldn\'t finish this answer. Please try again.',
@@ -41,6 +43,10 @@ export function toChatError(error: unknown): ChatError {
     const { status, requestId } = error.problem;
     if (status === 400 || status === 413 || status === 422)
       return { kind: 'invalid_question', requestId };
+    if (status === 409)
+      return { kind: 'conversation_full', requestId };
+    if (status === 404)
+      return { kind: 'conversation_missing', requestId };
     if (status === 401 || status === 403)
       return { kind: 'session_expired', requestId };
     return { kind: 'unavailable', requestId };
@@ -48,6 +54,31 @@ export function toChatError(error: unknown): ChatError {
   if (error instanceof AskStreamError)
     return { kind: 'stream_failed' };
   return { kind: 'unavailable' };
+}
+
+export type HistoryAction = 'load' | 'open' | 'rename' | 'delete';
+
+/** Plain-language failure text for the History sheet. Never shows server or provider text. */
+export function historyErrorMessage(error: unknown, action: HistoryAction): string {
+  if (error instanceof ApiError && error.problem.status === 404)
+    return 'That conversation no longer exists.';
+  if (error instanceof ApiError && (error.problem.status === 401 || error.problem.status === 403))
+    return 'Your session has expired. Reload the page or sign in again.';
+  switch (action) {
+    case 'load':
+      return 'We couldn\'t load your conversations.';
+    case 'open':
+      return 'We couldn\'t open that conversation. Please try again.';
+    case 'rename':
+      return 'We couldn\'t rename that conversation. Please try again.';
+    case 'delete':
+      return 'We couldn\'t delete that conversation. Please try again.';
+  }
+}
+
+/** True when asking again in the same conversation cannot work, so a new chat is the next step. */
+export function needsNewChat(error: ChatError): boolean {
+  return error.kind === 'conversation_full' || error.kind === 'conversation_missing';
 }
 
 /** The URL if it is safe to open from a link (http or https), otherwise undefined. */

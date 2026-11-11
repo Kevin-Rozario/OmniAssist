@@ -81,7 +81,7 @@ it('posts the question with the bearer token and yields events in order', async 
 
   const [url, init] = fetchMock.mock.calls[0] ?? [];
   // CI sets NEXT_PUBLIC_API_URL itself, so compare with the configured origin.
-  expect(String(url)).toBe(`${env.NEXT_PUBLIC_API_URL.replace(/\/+$/, '')}/v1/ask`);
+  expect(String(url)).toBe(`${env.NEXT_PUBLIC_API_URL.replace(/\/+$/, '')}/api/v1/ask`);
   expect(init?.method).toBe('POST');
   expect(JSON.parse(String(init?.body))).toEqual({ question: 'How do I set up the VPN?' });
   const headers = new Headers(init?.headers);
@@ -247,4 +247,34 @@ it('rejects with the abort error when aborted before the request is sent', async
 
   expect(error).not.toBeInstanceOf(AskStreamError);
   expect((error as Error).name).toBe('AbortError');
+});
+
+it('sends the conversation id when continuing a conversation, and omits it otherwise', async () => {
+  const id = '550e8400-e29b-41d4-a716-446655440000';
+  const fetchMock = stubFetch(() => streamResponse([happyPath]));
+
+  await collect(askStream(getToken, 'and on a Mac?', undefined, id));
+  await collect(askStream(getToken, 'first'));
+
+  expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({ question: 'and on a Mac?', conversationId: id });
+  expect(JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body))).toEqual({ question: 'first' });
+});
+
+it('rejects with the 404 and 409 problems before any event', async () => {
+  for (const status of [404, 409]) {
+    stubFetch(() => new Response(JSON.stringify({
+      type: 'about:blank',
+      title: 'Problem',
+      status,
+      requestId: 'req-x',
+    }), {
+      status,
+      headers: { 'content-type': 'application/problem+json' },
+    }));
+
+    const error = await collect(askStream(getToken, 'hi', undefined, '550e8400-e29b-41d4-a716-446655440000')).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as ApiError).problem.status).toBe(status);
+  }
 });

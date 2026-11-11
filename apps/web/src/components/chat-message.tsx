@@ -4,16 +4,18 @@ import type { ChatMessage as ChatMessageData } from '@/lib/chat-state';
 import { Badge } from '@omni/ui/components/badge';
 import { Button } from '@omni/ui/components/button';
 import { Loader } from '@omni/ui/components/loader';
-import { ExternalLinkIcon, RotateCcwIcon, TriangleAlertIcon } from 'lucide-react';
+import { ExternalLinkIcon, RotateCcwIcon, SquarePenIcon, TriangleAlertIcon } from 'lucide-react';
 import { memo } from 'react';
 import { BrandMark } from '@/components/brand';
-import { answerOrigin, errorMessage, safeHttpUrl, stageLabel } from '@/lib/chat-copy';
+import { answerOrigin, errorMessage, needsNewChat, safeHttpUrl, stageLabel } from '@/lib/chat-copy';
 
 interface ChatMessageProps {
   message: ChatMessageData;
   /** False while another answer is running, so retry is not offered. */
   canRetry: boolean;
   onRetry: (id: string) => void;
+  /** Offered instead of retry when the conversation is full or gone. */
+  onNewChat?: () => void;
 }
 
 function Sources({ sources }: { sources: ChatMessageData['sources'] }) {
@@ -84,7 +86,7 @@ function Origin({ message }: { message: ChatMessageData }) {
   );
 }
 
-function ChatMessageView({ message, canRetry, onRetry }: ChatMessageProps) {
+function ChatMessageView({ message, canRetry, onRetry, onNewChat }: ChatMessageProps) {
   const isStreaming = message.status === 'streaming';
   const waiting = isStreaming && message.text === '';
 
@@ -134,14 +136,23 @@ function ChatMessageView({ message, canRetry, onRetry }: ChatMessageProps) {
                   {message.error.requestId
                     ? <p className="text-xs text-muted-foreground">{`Reference: ${message.error.requestId}`}</p>
                     : null}
-                  {canRetry
-                    ? (
-                        <Button type="button" variant="outline" size="sm" onClick={() => onRetry(message.id)}>
-                          <RotateCcwIcon aria-hidden="true" />
-                          Try again
-                        </Button>
-                      )
-                    : null}
+                  {needsNewChat(message.error)
+                    ? (onNewChat
+                        ? (
+                            <Button type="button" variant="outline" size="sm" onClick={onNewChat}>
+                              <SquarePenIcon aria-hidden="true" />
+                              New chat
+                            </Button>
+                          )
+                        : null)
+                    : canRetry
+                      ? (
+                          <Button type="button" variant="outline" size="sm" onClick={() => onRetry(message.id)}>
+                            <RotateCcwIcon aria-hidden="true" />
+                            Try again
+                          </Button>
+                        )
+                      : null}
                 </div>
               )
             : null}

@@ -34,7 +34,7 @@ test.describe('signed-in shell', () => {
 
     let failNext = false;
     // Clerk's Frontend API also serves `/v1/me`, so match the app API's origin exactly.
-    await page.route(new URL('/v1/me', apiUrl()).href, async (route) => {
+    await page.route(new URL('/api/v1/me', apiUrl()).href, async (route) => {
       if (failNext) {
         failNext = false;
         await route.fulfill({

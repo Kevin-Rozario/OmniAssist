@@ -1,12 +1,18 @@
 import type { AppType } from '@omni/api/app';
 import type {
   AskStreamEvent,
+  ConversationDetail,
+  ConversationListResponse,
+  ConversationSummary,
   DocumentDetail,
   DocumentListResponse,
   MeResponse,
   ProblemDetails,
 } from '@omni/types';
 import {
+  ConversationDetailSchema,
+  ConversationListResponseSchema,
+  ConversationSummarySchema,
   createAskStreamParser,
   DocumentDetailSchema,
   DocumentListResponseSchema,
@@ -36,13 +42,13 @@ export function createApiClient(getToken: GetToken) {
 
 export async function fetchMe(getToken: GetToken): Promise<MeResponse> {
   const client = createApiClient(getToken);
-  const response = await client.v1.me.$get();
+  const response = await client.api.v1.me.$get();
   return MeResponseSchema.parse(await response.json());
 }
 
 export async function listDocuments(getToken: GetToken): Promise<DocumentListResponse> {
   const client = createApiClient(getToken);
-  const response = await client.v1.documents.$get();
+  const response = await client.api.v1.documents.$get();
   return DocumentListResponseSchema.parse(await response.json());
 }
 
@@ -51,7 +57,7 @@ export async function uploadDocument(
   file: File,
 ): Promise<DocumentDetail> {
   const client = createApiClient(getToken);
-  const response = await client.v1.documents.$post({
+  const response = await client.api.v1.documents.$post({
     form: { file },
   });
   return DocumentDetailSchema.parse(await response.json());
@@ -59,7 +65,7 @@ export async function uploadDocument(
 
 export async function deleteDocument(getToken: GetToken, id: string): Promise<void> {
   const client = createApiClient(getToken);
-  await client.v1.documents[':id'].$delete({
+  await client.api.v1.documents[':id'].$delete({
     param: { id },
   });
 }
@@ -69,10 +75,44 @@ export async function reingestDocument(
   id: string,
 ): Promise<DocumentDetail> {
   const client = createApiClient(getToken);
-  const response = await client.v1.documents[':id'].reingest.$post({
+  const response = await client.api.v1.documents[':id'].reingest.$post({
     param: { id },
   });
   return DocumentDetailSchema.parse(await response.json());
+}
+
+export async function listConversations(getToken: GetToken): Promise<ConversationListResponse> {
+  const client = createApiClient(getToken);
+  const response = await client.api.v1.conversations.$get();
+  return ConversationListResponseSchema.parse(await response.json());
+}
+
+export async function getConversation(getToken: GetToken, id: string): Promise<ConversationDetail> {
+  const client = createApiClient(getToken);
+  const response = await client.api.v1.conversations[':id'].$get({
+    param: { id },
+  });
+  return ConversationDetailSchema.parse(await response.json());
+}
+
+export async function renameConversation(
+  getToken: GetToken,
+  id: string,
+  title: string,
+): Promise<ConversationSummary> {
+  const client = createApiClient(getToken);
+  const response = await client.api.v1.conversations[':id'].$patch({
+    param: { id },
+    json: { title },
+  });
+  return ConversationSummarySchema.parse(await response.json());
+}
+
+export async function deleteConversation(getToken: GetToken, id: string): Promise<void> {
+  const client = createApiClient(getToken);
+  await client.api.v1.conversations[':id'].$delete({
+    param: { id },
+  });
 }
 
 /** The ask stream broke: it was malformed, or it closed without a `done` or `error` event. */
@@ -84,7 +124,7 @@ export class AskStreamError extends Error {
 }
 
 /**
- * Ask one question and yield the validated stream events in order.
+ * Ask one question, in a conversation when `conversationId` is given, and yield the validated stream events in order.
  *
  * A rejected request throws `ApiError` before the first event. A broken stream throws
  * `AskStreamError`. Aborting `signal` rejects with the platform's `AbortError`, unchanged.
@@ -94,13 +134,17 @@ export async function* askStream(
   getToken: GetToken,
   question: string,
   signal?: AbortSignal,
+  /** Continue this conversation. Omit it to start a new one. */
+  conversationId?: string,
 ): AsyncGenerator<AskStreamEvent, void, undefined> {
   const response = await authenticatedFetch(getToken)(
-    `${env.NEXT_PUBLIC_API_URL.replace(/\/+$/, '')}/v1/ask`,
+    `${env.NEXT_PUBLIC_API_URL.replace(/\/+$/, '')}/api/v1/ask`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
-      body: JSON.stringify({ question }),
+      body: JSON.stringify(conversationId
+        ? { question, conversationId }
+        : { question }),
       signal,
     },
   );
