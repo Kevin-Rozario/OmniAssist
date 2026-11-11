@@ -7,7 +7,7 @@ The web app is hosted on Vercel. The API image is published to GHCR and run on t
 | `compose.yml`     | API container, published only on `127.0.0.1:3000`  |
 | `Caddyfile`       | Host Caddy config: existing site plus the API host |
 | `api.env.example` | Template for the API environment                   |
-| `README.md`       | This runbook                                       |
+| `README.md`       | This runbook. Local setup is in the root README    |
 
 `api.env` is created on the server from the example. It is gitignored. Do not commit it.
 
@@ -125,7 +125,7 @@ The API container is limited to 512 MB. Raise `mem_limit` in `compose.yml` if th
 
 ## Ask pipeline
 
-`POST /v1/ask` needs three outside services. All four required variables must be in `api.env` or the API exits at startup naming the missing one (values are never printed). Recreate the container after editing them.
+`POST /api/v1/ask` needs OpenAI, Typesafe and Tavily. The four required variables below must be in `api.env` or the API exits at startup naming the missing one (values are never printed). Recreate the container after editing them.
 
 | Variable              | Required | Default      | Purpose                                                                  |
 | --------------------- | -------- | ------------ | ------------------------------------------------------------------------ |
@@ -139,7 +139,7 @@ The API container is limited to 512 MB. Raise `mem_limit` in `compose.yml` if th
 
 ## Knowledge base and Inngest
 
-Document upload and ingestion need services that are not covered by `/ready` (that probe stays Postgres-only). Provision them before admins use the Knowledge Base page:
+Document upload and ingestion need services that are not covered by `/api/ready` (that probe stays Postgres-only). Provision them before admins use the Knowledge Base page:
 
 | Service       | What to create                                                                                                                                      | Env vars in `api.env`                                                                            |
 | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
@@ -148,7 +148,7 @@ Document upload and ingestion need services that are not covered by `/ready` (th
 | Inngest Cloud | App whose serve URL is `https://api.omniassist.kevinrozario.com/api/inngest`                                                                        | `INNGEST_SIGNING_KEY`, `INNGEST_EVENT_KEY`                                                       |
 | Upload cap    | Optional override (default 10 MiB)                                                                                                                  | `KB_MAX_UPLOAD_BYTES`                                                                            |
 
-Apply the `kb_documents` migration before first KB use (from a machine with `DATABASE_URL_DIRECT`):
+Apply the database migrations before the first knowledge-base or chat use. They create `kb_documents`, `conversations` and `conversation_turns`, and must be applied before deploying an API version that saves conversations. Run them from a machine that has `DATABASE_URL_DIRECT`:
 
 ```sh
 pnpm --filter @omni/db db:migrate
@@ -173,7 +173,7 @@ curl -fsS https://api.omniassist.kevinrozario.com/ready
 curl -fsSI https://api.omniassist.kevinrozario.com/docs
 ```
 
-`/health` returns `{"status":"ok"}` and does not touch the database. `/ready` returns `{"status":"ok","checks":{"database":"ok"}}` only when `select 1` succeeds. `/docs` returns HTTP 200 with `content-type: text/html` and a `via: 1.1 Caddy` header. `/api/inngest` is the Inngest serve path (authenticated by Inngest signing key, not Clerk).
+`/api/health` returns `{"status":"ok"}` and does not touch the database. `/api/ready` returns `{"status":"ok","checks":{"database":"ok"}}` only when `select 1` succeeds. `/api/docs` returns HTTP 200 with `content-type: text/html` and a `via: 1.1 Caddy` header. `/api/inngest` is the Inngest serve path (authenticated by Inngest signing key, not Clerk).
 
 Logs:
 
