@@ -11,6 +11,10 @@ export interface RagPolicy {
   kbTopK: number;
   /** Web results requested per question. */
   webMaxResults: number;
+  /** Longest the follow-up rewrite may take before the original question is used. */
+  rewriteTimeoutMs: number;
+  /** A rewrite longer than this is treated as a failure. */
+  rewriteMaxLength: number;
 }
 
 /**
@@ -24,4 +28,6 @@ export const policy: Readonly<RagPolicy> = Object.freeze({
   injectionMax: 0.7,
   kbTopK: 8,
   webMaxResults: 5,
+  rewriteTimeoutMs: 8000,
+  rewriteMaxLength: 500,
 });

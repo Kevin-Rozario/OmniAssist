@@ -1,5 +1,5 @@
 import type { AnswerSource } from '@omni/types';
-import type { KbPassage, RouteLabel, WebResult } from './ports';
+import type { HistoryExchange, KbPassage, RouteLabel, WebResult } from './ports';
 import { Annotation } from '@langchain/langgraph';
 
 export type Verdict = 'good' | 'weak';
@@ -17,7 +17,12 @@ function lastValue<T>(initial: () => T) {
 }
 
 export const RagState = Annotation.Root({
+  /** The question the flow works on: standalone once rewritten, as asked otherwise. */
   question: lastValue<string>(() => ''),
+  /** The user's own wording, kept for the answer prompt. Set by `rewrite_question`. */
+  originalQuestion: lastValue<string>(() => ''),
+  /** Earlier exchanges of the conversation, oldest first. Empty for a new conversation. */
+  history: lastValue<HistoryExchange[]>(() => []),
   route: lastValue<RouteLabel>(() => 'kb'),
   kbChunks: lastValue<KbPassage[]>(() => []),
   kbVerdict: lastValue<Verdict>(() => 'weak'),

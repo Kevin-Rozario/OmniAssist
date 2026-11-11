@@ -22,6 +22,8 @@ describe('policy defaults', () => {
       'injectionMax',
       'kbTopK',
       'relevantMin',
+      'rewriteMaxLength',
+      'rewriteTimeoutMs',
       'routerMinConfidence',
       'usableMin',
       'webMaxResults',

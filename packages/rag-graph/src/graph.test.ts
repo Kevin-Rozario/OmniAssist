@@ -19,11 +19,16 @@ import {
   webResult,
 } from './test-support';
 
-async function run(graph: RagGraph, question: string, signal?: AbortSignal) {
+async function run(
+  graph: RagGraph,
+  question: string,
+  signal?: AbortSignal,
+  history: Array<{ question: string; answer: string }> = [],
+) {
   const events: GraphEvent[] = [];
   let state: RagStateType | undefined;
 
-  const stream = await graph.stream({ question }, {
+  const stream = await graph.stream({ question, history }, {
     streamMode: ['custom', 'values'],
     signal,
   });
@@ -50,6 +55,8 @@ function eventTypes(events: readonly GraphEvent[]): string[] {
 describe('edge functions', () => {
   const state = (overrides: Partial<RagStateType>): RagStateType => ({
     question: 'q',
+    originalQuestion: 'q',
+    history: [],
     route: 'kb',
     kbChunks: [],
     kbVerdict: 'weak',
@@ -417,5 +424,65 @@ describe('rag graph cancellation', () => {
 
     expect(classifier.routeCalls).toEqual([]);
     expect(retriever.calls).toEqual([]);
+  });
+});
+
+describe('rag graph follow-up questions', () => {
+  it('routes and retrieves with the standalone question while the answer sees the original', async () => {
+    const classifier = fakeClassifier();
+    const retriever = fakeRetriever([
+      kbPassage({ filename: 'vpn-mac.md', text: 'Use the App Store build.' }),
+    ]);
+    const generator = fakeGenerator(['Use the App Store build [1].']);
+    // The rewrite and the answer share one generator, so answer by call order.
+    const requests: string[] = [];
+    const sharedGenerator = {
+      ...generator,
+      stream(request: Parameters<typeof generator.stream>[0]) {
+        requests.push(request.system.startsWith('You rewrite')
+          ? 'rewrite'
+          : 'answer');
+        return request.system.startsWith('You rewrite')
+          ? fakeGenerator(['How do I set up the VPN on a Mac?']).stream(request)
+          : generator.stream(request);
+      },
+    };
+    const graph = createRagGraph({
+      classifier,
+      retriever,
+      webSearch: fakeWebSearch(),
+      generator: sharedGenerator,
+    });
+
+    const { events, state } = await run(graph, 'and on a Mac?', undefined, [
+      { question: 'How do I set up the VPN on Windows?', answer: 'Install the client from the portal.' },
+    ]);
+
+    expect(requests).toEqual(['rewrite', 'answer']);
+    expect(classifier.routeCalls).toEqual(['How do I set up the VPN on a Mac?']);
+    expect(retriever.calls[0]?.query).toBe('How do I set up the VPN on a Mac?');
+    expect(classifier.gradeCalls.length).toBeGreaterThan(0);
+    const answerRequest = generator.requests[0];
+    expect(answerRequest?.user.endsWith('Question: and on a Mac?')).toBe(true);
+    expect(answerRequest?.user).toContain('<conversation>');
+    expect(state.originalQuestion).toBe('and on a Mac?');
+    expect(state.question).toBe('How do I set up the VPN on a Mac?');
+    expect(stages(events)).not.toContain('rewriting');
+    expect(state.answerSource).toBe('kb');
+  });
+
+  it('makes no extra model call for a first question', async () => {
+    const generator = fakeGenerator(['Hi!']);
+    const graph = createRagGraph({
+      classifier: fakeClassifier({
+        route: { label: 'direct', confidence: 0.95 },
+      }),
+      retriever: fakeRetriever(),
+      webSearch: fakeWebSearch(),
+      generator,
+    });
+    await run(graph, 'hello');
+    expect(generator.requests).toHaveLength(1);
+    expect(generator.requests[0]?.system).not.toContain('You rewrite');
   });
 });

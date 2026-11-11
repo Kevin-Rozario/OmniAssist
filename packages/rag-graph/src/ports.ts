@@ -36,6 +36,12 @@ export interface WebSearch {
   search: (query: string, options: CallOptions & { maxResults: number }) => Promise<WebResult[]>;
 }
 
+/** One earlier exchange of the conversation, text only (never sources). */
+export interface HistoryExchange {
+  question: string;
+  answer: string;
+}
+
 export type RouteLabel = 'kb' | 'direct';
 
 export interface RouteDecision {

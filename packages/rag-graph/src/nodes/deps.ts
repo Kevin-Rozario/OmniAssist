@@ -5,10 +5,12 @@ import type { Classifier, Generator, GraphEvent, KbRetriever, WebSearch } from '
 /** Structured, text-free log lines. Callers must never pass question, passage or answer text. */
 export interface RagLogger {
   warn: (fields: Record<string, unknown>, message: string) => void;
+  info: (fields: Record<string, unknown>, message: string) => void;
 }
 
 export const noopLogger: RagLogger = {
   warn: () => {},
+  info: () => {},
 };
 
 export interface RagDeps {

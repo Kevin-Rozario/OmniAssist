@@ -12,6 +12,7 @@ import {
 import { noopLogger } from './nodes/deps';
 import { createGradeKbNode, createGradeWebNode } from './nodes/grade';
 import { createRetrieveKbNode } from './nodes/retrieve';
+import { createRewriteQuestionNode } from './nodes/rewrite';
 import { createRouteNode } from './nodes/route';
 import { createSearchWebNode } from './nodes/web-search';
 import { policy as defaultPolicy } from './policy';
@@ -50,7 +51,7 @@ export function afterGradeWeb(state: RagStateType): 'answer_web' | 'answer_fallb
 /**
  * Builds the answer flow. The node is `router` because `route` is already a state field:
  *
- *     START -> router --kb--> retrieve_kb -> grade_kb --good--> answer_kb -> END
+ *     START -> rewrite_question -> router --kb--> retrieve_kb -> grade_kb --good--> answer_kb -> END
  *                |                             '--weak--> search_web -> grade_web
  *                |                                         --good--> answer_web -> END
  *                |                                         --weak--> answer_fallback -> END
@@ -70,6 +71,7 @@ export function createRagGraph(options: RagGraphOptions) {
   };
 
   return new StateGraph(RagState)
+    .addNode('rewrite_question', createRewriteQuestionNode(deps))
     .addNode('router', createRouteNode(deps))
     .addNode('retrieve_kb', createRetrieveKbNode(deps))
     .addNode('grade_kb', createGradeKbNode(deps))
@@ -79,7 +81,8 @@ export function createRagGraph(options: RagGraphOptions) {
     .addNode('answer_web', createAnswerWebNode(deps))
     .addNode('answer_fallback', createAnswerFallbackNode(deps))
     .addNode('answer_direct', createAnswerDirectNode(deps))
-    .addEdge(START, 'router')
+    .addEdge(START, 'rewrite_question')
+    .addEdge('rewrite_question', 'router')
     .addConditionalEdges('router', afterRoute, ['retrieve_kb', 'answer_direct'])
     .addEdge('retrieve_kb', 'grade_kb')
     .addConditionalEdges('grade_kb', afterGradeKb, ['answer_kb', 'search_web'])

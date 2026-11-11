@@ -1,5 +1,6 @@
 import type { LangGraphRunnableConfig } from '@langchain/langgraph';
 import type { AnswerSource } from '@omni/types';
+import type { HistoryExchange } from '../ports';
 import type { Prompt } from '../prompts';
 import type { AcceptedSource, RagStateType, RagStateUpdate } from '../state';
 import type { RagDeps } from './deps';
@@ -37,6 +38,11 @@ async function streamAnswer(
     throw new Error('Answer generator produced no text');
 }
 
+/** The answer addresses the user's own wording; routing and retrieval used the standalone form. */
+function askedQuestion(state: RagStateType): string {
+  return state.originalQuestion || state.question;
+}
+
 function sourcesOfKind(state: RagStateType, kind: AcceptedSource['kind']): AcceptedSource[] {
   return state.acceptedSources.filter(source => source.kind === kind);
 }
@@ -44,7 +50,11 @@ function sourcesOfKind(state: RagStateType, kind: AcceptedSource['kind']): Accep
 function createCitedAnswerNode(
   deps: RagDeps,
   kind: 'kb' | 'web',
-  buildPrompt: (question: string, sources: ReturnType<typeof toPromptSources>) => Prompt,
+  buildPrompt: (
+    question: string,
+    sources: ReturnType<typeof toPromptSources>,
+    history: readonly HistoryExchange[],
+  ) => Prompt,
 ) {
   return async (state: RagStateType, config: LangGraphRunnableConfig): Promise<RagStateUpdate> => {
     ensureActive(config);
@@ -55,7 +65,7 @@ function createCitedAnswerNode(
       type: 'citations',
       sources: buildCitations(accepted),
     });
-    await streamAnswer(deps, config, buildPrompt(state.question, toPromptSources(accepted)));
+    await streamAnswer(deps, config, buildPrompt(askedQuestion(state), toPromptSources(accepted), state.history));
 
     return { answerSource: kind };
   };
@@ -64,13 +74,13 @@ function createCitedAnswerNode(
 function createUncitedAnswerNode(
   deps: RagDeps,
   answerSource: Extract<AnswerSource, 'fallback' | 'direct'>,
-  buildPrompt: (question: string) => Prompt,
+  buildPrompt: (question: string, history: readonly HistoryExchange[]) => Prompt,
 ) {
   return async (state: RagStateType, config: LangGraphRunnableConfig): Promise<RagStateUpdate> => {
     ensureActive(config);
 
     emit(config, { type: 'status', stage: 'writing' });
-    await streamAnswer(deps, config, buildPrompt(state.question));
+    await streamAnswer(deps, config, buildPrompt(askedQuestion(state), state.history));
 
     return { answerSource };
   };

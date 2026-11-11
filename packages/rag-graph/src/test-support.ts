@@ -142,10 +142,18 @@ export function fakeGenerator(
   return generator;
 }
 
-export function fakeLogger(): RagLogger & { warnings: Array<{ fields: Record<string, unknown>; message: string }> } {
+export function fakeLogger(): RagLogger & {
+  warnings: Array<{ fields: Record<string, unknown>; message: string }>;
+  infos: Array<{ fields: Record<string, unknown>; message: string }>;
+} {
   const warnings: Array<{ fields: Record<string, unknown>; message: string }> = [];
+  const infos: Array<{ fields: Record<string, unknown>; message: string }> = [];
   return {
     warnings,
+    infos,
+    info: (fields, message) => {
+      infos.push({ fields, message });
+    },
     warn: (fields, message) => {
       warnings.push({ fields, message });
     },
@@ -183,6 +191,8 @@ export function fakeConfig(
 export function initialState(overrides: Partial<RagStateType> = {}): RagStateType {
   return {
     question: 'How do I set up the VPN?',
+    originalQuestion: '',
+    history: [],
     route: 'kb',
     kbChunks: [],
     kbVerdict: 'weak',
