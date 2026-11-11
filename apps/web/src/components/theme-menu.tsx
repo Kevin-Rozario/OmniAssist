@@ -23,13 +23,22 @@ export function ThemeMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button type="button" variant="outline" size="icon" aria-label="Theme">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          aria-label="Theme"
+          className="border-0 shadow-none outline-none hover:bg-foreground/10 focus-visible:border-transparent focus-visible:ring-0 dark:hover:bg-foreground/10"
+        >
           <SunIcon className="dark:hidden" aria-hidden="true" />
           <MoonIcon className="hidden dark:inline" aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuRadioGroup value={theme ?? 'system'} onValueChange={setTheme}>
+        <DropdownMenuRadioGroup
+          value={theme ?? 'system'}
+          onValueChange={setTheme}
+        >
           {themes.map(option => (
             <DropdownMenuRadioItem key={option.value} value={option.value}>
               {option.label}
