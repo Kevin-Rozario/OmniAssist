@@ -127,26 +127,26 @@ The API container is limited to 512 MB. Raise `mem_limit` in `compose.yml` if th
 
 `POST /v1/ask` needs three outside services. All four required variables must be in `api.env` or the API exits at startup naming the missing one (values are never printed). Recreate the container after editing them.
 
-| Variable              | Required | Default      | Purpose                                                                 |
-| --------------------- | -------- | ------------ | ----------------------------------------------------------------------- |
-| `OPENAI_API_KEY`      | yes      |              | OpenAI key used to stream the answer                                    |
-| `OPENAI_ANSWER_MODEL` | yes      |              | Answer model id (no default, so a stale id never ships silently)        |
-| `TYPESAFE_API_KEY`    | yes      |              | Typesafe key for the Jev router and graders                             |
-| `TAVILY_API_KEY`      | yes      |              | Tavily key for web search when the KB cannot answer                     |
+| Variable              | Required | Default      | Purpose                                                                  |
+| --------------------- | -------- | ------------ | ------------------------------------------------------------------------ |
+| `OPENAI_API_KEY`      | yes      |              | OpenAI key used to stream the answer                                     |
+| `OPENAI_ANSWER_MODEL` | yes      |              | Answer model id (no default, so a stale id never ships silently)         |
+| `TYPESAFE_API_KEY`    | yes      |              | Typesafe key for the Jev router and graders                              |
+| `TAVILY_API_KEY`      | yes      |              | Tavily key for web search when the KB cannot answer                      |
 | `TYPESAFE_MODEL`      | no       | `jev-1.14.0` | Jev model id. Keep it versioned: grading thresholds are tuned against it |
-| `KB_RETRIEVAL_TOP_K`  | no       | `8`          | Chunks retrieved per question (1 to 20). Each one costs a grading call  |
-| `ASK_TIMEOUT_MS`      | no       | `60000`      | Whole-request deadline before the stream ends with a timeout error      |
+| `KB_RETRIEVAL_TOP_K`  | no       | `8`          | Chunks retrieved per question (1 to 20). Each one costs a grading call   |
+| `ASK_TIMEOUT_MS`      | no       | `60000`      | Whole-request deadline before the stream ends with a timeout error       |
 
 ## Knowledge base and Inngest
 
 Document upload and ingestion need services that are not covered by `/ready` (that probe stays Postgres-only). Provision them before admins use the Knowledge Base page:
 
-| Service       | What to create                                                               | Env vars in `api.env`                                                                            |
-| ------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| Cloudflare R2 | Private bucket + S3 API token (Object Read & Write)                          | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, optional `R2_ENDPOINT` |
+| Service       | What to create                                                                                                                                      | Env vars in `api.env`                                                                            |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Cloudflare R2 | Private bucket + S3 API token (Object Read & Write)                                                                                                 | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, optional `R2_ENDPOINT` |
 | Pinecone      | Document index `omniassist-kb`: `chunk_text` embedded with `text-embedding-3-small` (1536, cosine, English full-text) and `title` English full-text | `PINECONE_API_KEY`, `PINECONE_INDEX`                                                             |
-| Inngest Cloud | App whose serve URL is `https://api.omniassist.kevinrozario.com/api/inngest` | `INNGEST_SIGNING_KEY`, `INNGEST_EVENT_KEY`                                                       |
-| Upload cap    | Optional override (default 10 MiB)                                           | `KB_MAX_UPLOAD_BYTES`                                                                            |
+| Inngest Cloud | App whose serve URL is `https://api.omniassist.kevinrozario.com/api/inngest`                                                                        | `INNGEST_SIGNING_KEY`, `INNGEST_EVENT_KEY`                                                       |
+| Upload cap    | Optional override (default 10 MiB)                                                                                                                  | `KB_MAX_UPLOAD_BYTES`                                                                            |
 
 Apply the `kb_documents` migration before first KB use (from a machine with `DATABASE_URL_DIRECT`):
 
@@ -156,11 +156,12 @@ pnpm --filter @omni/db db:migrate
 
 After the API container is up with Inngest keys, open the Inngest dashboard and sync/register the app so function id `kb-ingest-document` (event `kb/document.uploaded`) is listed. Until sync succeeds, uploads create `pending` rows but ingestion jobs will not run. Recreate the container after editing these vars (`docker compose up -d --force-recreate`).
 
-Local seed of the Omni Corp Markdown corpus (dev only, not for production CI):
+Local seed of the fictional Omni Corp corpus: 29 documents in Markdown, text, Word and PDF (dev only, not for production CI). `--with-adversarial` also uploads a prompt-injection note and a superseded policy for testing grading; use it on a dev knowledge base only. Evaluation questions with expected answers are in `packages/ingestion/fixtures/omni-corp-eval-set.md`.
 
 ```sh
 pnpm seed-kb --help
 pnpm seed-kb --dry-run
+pnpm seed-kb --with-adversarial   # dev only
 SEED_BEARER_TOKEN=<admin-clerk-jwt> SEED_API_URL=http://127.0.0.1:3000 pnpm seed-kb
 ```
 

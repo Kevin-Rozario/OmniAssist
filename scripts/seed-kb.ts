@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 /**
- * Upload Omni Corp Markdown fixtures to a running OmniAssist API.
+ * Upload the Omni Corp knowledge-base fixtures (.md, .txt, .docx, .pdf) to a running OmniAssist API.
  *
  * Usage:
  *   pnpm seed-kb --help
  *   pnpm seed-kb --dry-run
+ *   pnpm seed-kb --with-adversarial   (also uploads the planted-instruction and stale-policy documents)
  *   SEED_BEARER_TOKEN=<admin-jwt> pnpm seed-kb
  *   SEED_API_URL=http://127.0.0.1:3000 SEED_BEARER_TOKEN=… pnpm seed-kb
  *
@@ -14,7 +15,7 @@
  */
 
 import { readdirSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { basename, dirname, extname, join } from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
@@ -24,15 +25,18 @@ const fixturesDir = join(scriptDir, '../packages/ingestion/fixtures/omni-corp');
 interface CliOptions {
   help: boolean;
   dryRun: boolean;
+  withAdversarial: boolean;
 }
 
 function parseArgs(argv: string[]): CliOptions {
-  const options: CliOptions = { help: false, dryRun: false };
+  const options: CliOptions = { help: false, dryRun: false, withAdversarial: false };
   for (const arg of argv) {
     if (arg === '--help' || arg === '-h')
       options.help = true;
     else if (arg === '--dry-run')
       options.dryRun = true;
+    else if (arg === '--with-adversarial')
+      options.withAdversarial = true;
     else
       throw new Error(`Unknown argument: ${arg}\nRun with --help for usage.`);
   }
@@ -50,6 +54,9 @@ Usage:
 Options:
   -h, --help     Show this help text
   --dry-run      List fixture files that would be uploaded; do not call the API
+  --with-adversarial
+                 Also upload adversarial/ (a prompt-injection note and a superseded policy).
+                 Use only on a dev knowledge base to test grading; never in production.
 
 Environment:
   SEED_API_URL       API base URL (default: http://127.0.0.1:3000)
@@ -60,22 +67,40 @@ Fixtures directory:
 `);
 }
 
-function listFixtures(): string[] {
-  return readdirSync(fixturesDir)
-    .filter(name => name.endsWith('.md'))
-    .sort();
+const SUPPORTED_EXTENSIONS = ['.md', '.txt', '.docx', '.pdf'] as const;
+const CONTENT_TYPES: Record<string, string> = {
+  '.md': 'text/markdown',
+  '.txt': 'text/plain',
+  '.pdf': 'application/pdf',
+  '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+};
+
+/** Paths relative to the fixtures directory. Adversarial documents are opt-in. */
+function listFixtures(withAdversarial: boolean): string[] {
+  const list = (dir: string): string[] => readdirSync(join(fixturesDir, dir))
+    .filter(name => SUPPORTED_EXTENSIONS.includes(extname(name) as typeof SUPPORTED_EXTENSIONS[number]))
+    .sort()
+    .map(name => join(dir, name));
+
+  return [
+    ...list('.'),
+    ...(withAdversarial
+      ? list('adversarial')
+      : []),
+  ];
 }
 
 async function uploadFixture(
   apiUrl: string,
   token: string,
-  filename: string,
+  relativePath: string,
 ): Promise<{ id: string; status: string }> {
-  const bytes = readFileSync(join(fixturesDir, filename));
+  const filename = basename(relativePath);
+  const bytes = readFileSync(join(fixturesDir, relativePath));
   const form = new FormData();
   form.append(
     'file',
-    new Blob([bytes], { type: 'text/markdown' }),
+    new Blob([bytes], { type: CONTENT_TYPES[extname(filename)] }),
     filename,
   );
 
@@ -106,9 +131,9 @@ async function main(): Promise<void> {
     return;
   }
 
-  const fixtures = listFixtures();
+  const fixtures = listFixtures(options.withAdversarial);
   if (fixtures.length === 0)
-    throw new Error(`No .md fixtures found in ${fixturesDir}`);
+    throw new Error(`No fixtures found in ${fixturesDir}`);
 
   const apiUrl = (process.env.SEED_API_URL || 'http://127.0.0.1:3000').replace(/\/$/, '');
 

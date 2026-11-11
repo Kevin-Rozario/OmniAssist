@@ -1,0 +1,46 @@
+OMNI CORP ENGINEERING ON-CALL RUNBOOK
+Owner: Platform Engineering. Last reviewed 2026-09-18.
+
+PURPOSE
+Omni Corp production services have 24x7 on-call coverage. This runbook describes how the
+rotation works and what the on-call engineer does during a Sev-1 or Sev-2 incident.
+
+ROTATION
+- One primary and one secondary engineer per service group, rotating weekly.
+- Handoff is Monday 10:00 local time in the Austin or Bengaluru hub that owns the rotation.
+- The current on-call list is shown in PagerDuty and pinned in #it-incidents.
+- Swaps are agreed in the team channel and recorded in PagerDuty before the shift starts.
+
+PAGING AND RESPONSE
+- Acknowledge a page within 5 minutes.
+- If the primary has not acknowledged in 10 minutes, the page goes to the secondary.
+- If neither acknowledges in 20 minutes, the engineering manager is paged.
+- Sev-1: the on-call engineer becomes or appoints the incident commander and opens an
+  incident channel named inc-YYYYMMDD-short-name.
+- Sev-2: acknowledge within 30 minutes and start work during business hours of the owning team.
+
+FIRST 15 MINUTES OF A SEV-1
+1. Acknowledge the page and confirm the impact (who, what, since when).
+2. Create the incident channel and post the first update.
+3. Assign roles: incident commander, communications lead, scribe.
+4. Post updates every 30 minutes in #it-incidents.
+5. For customer-visible impact, update https://status.omnicorp.example.
+6. Prefer rollback over a forward fix when a recent change is the suspected cause.
+
+COMMUNICATION
+- Internal update template: impact, current status, next update time.
+- Do not speculate about root cause in customer-facing messages.
+- Security is added to the channel for any suspected compromise.
+
+AFTER THE INCIDENT
+- Postmortem within 5 business days for Sev-1 and Sev-2.
+- Blameless format: timeline, impact, root cause, what went well, what to improve, actions with
+  owners and due dates.
+- Actions are tracked in the engineering board and reviewed monthly.
+
+COMPENSATION
+On-call engineers receive a weekly stipend and time off in lieu for pages between 22:00 and 06:00.
+The exact amounts are in the engineering handbook, not this document.
+
+NOT COVERED HERE
+Customer support escalation paths, billing disputes and HR matters are handled by other teams.

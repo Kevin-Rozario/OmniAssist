@@ -1,0 +1,40 @@
+OMNI CORP IT CONTACTS DIRECTORY
+Plain-text export from the IT handbook. Last reviewed 2026-09-22.
+
+SERVICE DESK
+  Portal ............ https://help.omnicorp.example
+  Email ............. helpdesk@omnicorp.example
+  Slack ............. #it-help
+  Phone, Americas ... +1 512 555 0142   Mon-Fri 07:00-19:00 Central Time
+  Phone, EMEA ....... +353 1 555 0142   Mon-Fri 08:00-18:00 Irish time
+  Phone, APAC ....... +65 6555 0142     Mon-Fri 08:00-18:00 Singapore time
+
+SECURITY OPERATIONS (24x7)
+  Email ............. security@omnicorp.example
+  Slack ............. #it-incidents (incidents), #security-help (questions)
+  Sev-1 on-call ..... +1 512 555 0199
+  Report phishing ... Outlook "Report Phish" button, or forward as an attachment to security@omnicorp.example
+
+WALK-UP IT DESKS (Mon-Fri 09:00-17:00 local time)
+  Austin HQ ......... Floor 2
+  Dublin ............ Floor 1
+  Singapore ......... Level 12
+  Bengaluru ......... Floor 3
+
+IDENTITY AND ACCESS
+  Self-service reset  https://id.omnicorp.example/reset
+  MFA enrollment .... https://id.omnicorp.example/mfa
+  Access requests ... https://help.omnicorp.example, "Request access"
+
+OTHER TEAMS (NOT IT)
+  People Operations . HR, payroll, benefits, leave -- People Operations portal
+  Workplace ......... workplace@omnicorp.example (buildings, parking, facilities)
+  Finance ........... expenses and procurement questions -- Concur and the Finance portal
+  Legal ............. legal hold notices and contracts
+
+STATUS PAGE
+  https://status.omnicorp.example
+
+ESCALATION
+  Reply "escalate" on a P2 or P3 ticket that missed its target.
+  For a P1, call the regional Service Desk number and say "Sev-1".

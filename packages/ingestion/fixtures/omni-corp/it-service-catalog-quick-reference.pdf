@@ -1,0 +1,109 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [6 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+5 0 obj
+<< /Length 2506 >>
+stream
+BT
+54 738 Td
+14 TL
+/F2 14 Tf
+(Omni Corp IT Service Catalog Quick Reference) Tj T*
+/F1 10 Tf
+() Tj T*
+/F1 10 Tf
+(Last reviewed 2026-09-25. Portal: https://help.omnicorp.example/catalog) Tj T*
+/F1 10 Tf
+() Tj T*
+/F2 11 Tf
+(ACCOUNTS AND ACCESS) Tj T*
+/F1 10 Tf
+(- Reset password: https://id.omnicorp.example/reset \(self-service, 14 character minimum\)) Tj T*
+/F1 10 Tf
+(- Enroll or reset MFA: https://id.omnicorp.example/mfa \(backup codes: ten single-use\)) Tj T*
+/F1 10 Tf
+(- Request application access: catalog > Request access \(manager approval, 1 business day\)) Tj T*
+/F1 10 Tf
+(- Contractor account extension: manager approval recorded in the ticket \(accounts last 90 days\)) Tj T*
+/F1 10 Tf
+() Tj T*
+/F2 11 Tf
+(DEVICES) Tj T*
+/F1 10 Tf
+(- New laptop for a new hire: category Onboarding, 10 business days before start) Tj T*
+/F1 10 Tf
+(- Dock, two 27-inch monitors, keyboard, mouse, headset: category Hardware, up to 5 business days) Tj T*
+/F1 10 Tf
+(- Repair or loaner laptop: category Hardware. Loaner same day at walk-up desks) Tj T*
+/F1 10 Tf
+(- Lost or stolen device: report within 1 hour in #it-incidents) Tj T*
+/F1 10 Tf
+(- Refresh: every 36 months, you are emailed 60 days ahead) Tj T*
+/F1 10 Tf
+() Tj T*
+/F2 11 Tf
+(SOFTWARE) Tj T*
+/F1 10 Tf
+(- Catalog apps: usually 1 business day) Tj T*
+/F1 10 Tf
+(- New software needing security review: up to 10 business days) Tj T*
+/F1 10 Tf
+(- Paid licences: manager up to 500 USD per user per year; director up to 5,000 USD) Tj T*
+/F1 10 Tf
+(- Admin rights: not granted. Use Privilege Elevation \(15 minutes, logged\)) Tj T*
+/F1 10 Tf
+() Tj T*
+/F2 11 Tf
+(NETWORK AND COLLABORATION) Tj T*
+/F1 10 Tf
+(- VPN: GlobalProtect, gateway vpn.omnicorp.example, 4 hour idle timeout, 12 hour session) Tj T*
+/F1 10 Tf
+(- Wi-Fi: Omni-Corp \(managed laptops\), Omni-Guest \(visitors, 24 hours, employee sponsor\)) Tj T*
+/F1 10 Tf
+(- Shared mailbox or distribution list: category Collaboration, 1 business day) Tj T*
+/F1 10 Tf
+(- Meeting room problem: message #it-help with the room name) Tj T*
+/F1 10 Tf
+() Tj T*
+/F2 11 Tf
+(SECURITY) Tj T*
+/F1 10 Tf
+(- Report phishing: Outlook Report Phish button or forward as attachment to security@omnicorp.example) Tj T*
+/F1 10 Tf
+(- Travel notification: 10 business days before international trips) Tj T*
+/F1 10 Tf
+(- Sev-1 emergency: call the regional Service Desk number and say Sev-1) Tj T*
+/F1 10 Tf
+() Tj T*
+/F1 10 Tf
+(HOURS: Americas 07:00-19:00 CT, EMEA 08:00-18:00 Irish time, APAC 08:00-18:00 SGT \(Mon-Fri\)) Tj T*
+ET
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 5 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> >>
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000185 00000 n 
+0000000260 00000 n 
+0000002818 00000 n 
+trailer
+<< /Size 7 /Root 1 0 R >>
+startxref
+2954
+%%EOF
