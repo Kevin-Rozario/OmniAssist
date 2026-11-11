@@ -2,7 +2,7 @@ import type { z } from 'zod';
 import type { AskEventName } from './ask';
 import { AskEventSchemas } from './ask';
 
-/** One validated frame of the `POST /v1/ask` event stream. */
+/** One validated frame of the `POST /api/v1/ask` event stream. */
 export type AskStreamEvent = {
   [Name in AskEventName]: { event: Name; data: z.infer<(typeof AskEventSchemas)[Name]> };
 }[AskEventName];

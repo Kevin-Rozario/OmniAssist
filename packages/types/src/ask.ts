@@ -2,9 +2,11 @@ import { z } from 'zod';
 
 export const ASK_QUESTION_MAX_LENGTH = 2000;
 
-/** Request body for `POST /v1/ask`. The question is trimmed before length checks. */
+/** Request body for `POST /api/v1/ask`. The question is trimmed before length checks. */
 export const AskRequestSchema = z.object({
   question: z.string().trim().min(1).max(ASK_QUESTION_MAX_LENGTH),
+  /** Continue one of the caller's conversations. Omit it to start a new one. */
+  conversationId: z.uuid().optional(),
 });
 export type AskRequest = z.infer<typeof AskRequestSchema>;
 
@@ -81,6 +83,8 @@ export type AskTokenEvent = z.infer<typeof AskTokenEventSchema>;
 export const AskDoneEventSchema = z.object({
   answerSource: AnswerSourceSchema,
   sourceConfidence: SourceConfidenceSchema,
+  /** The conversation the exchange was saved to, so a client can continue it. */
+  conversationId: z.uuid().optional(),
 });
 export type AskDoneEvent = z.infer<typeof AskDoneEventSchema>;
 

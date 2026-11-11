@@ -8,6 +8,11 @@ import {
   AskRequestSchema,
   AskStatusEventSchema,
   AskTokenEventSchema,
+  CONVERSATION_LIST_MAX,
+  CONVERSATION_MAX_TURNS,
+  ConversationDetailSchema,
+  ConversationListResponseSchema,
+  ConversationSummarySchema,
   DocumentDetailSchema,
   DocumentListResponseSchema,
   DocumentStatusSchema,
@@ -15,6 +20,7 @@ import {
   DocumentUploadErrorSchema,
   MeResponseSchema,
   ProblemDetailsSchema,
+  RenameConversationRequestSchema,
   RoleSchema,
   sourceConfidenceFor,
   SourceConfidenceSchema,
@@ -249,6 +255,97 @@ describe('askRequestSchema', () => {
     expect(result.success
       ? []
       : result.error.issues.map(i => i.path[0])).toContain('question');
+  });
+});
+
+describe('askRequestSchema conversation id', () => {
+  const id = '550e8400-e29b-41d4-a716-446655440000';
+
+  it('accepts a valid conversation id', () => {
+    expect(AskRequestSchema.parse({ question: 'And on a Mac?', conversationId: id }).conversationId).toBe(id);
+  });
+
+  it('accepts a request without one', () => {
+    expect(AskRequestSchema.parse({ question: 'Hi' }).conversationId).toBeUndefined();
+  });
+
+  it('rejects a malformed conversation id and names the field', () => {
+    const result = AskRequestSchema.safeParse({ question: 'Hi', conversationId: 'not-an-id' });
+    expect(result.success).toBe(false);
+    expect(result.success
+      ? []
+      : result.error.issues.map(i => i.path[0])).toContain('conversationId');
+  });
+});
+
+describe('ask done event conversation id', () => {
+  it('carries the conversation id when present and works without it', () => {
+    const id = '550e8400-e29b-41d4-a716-446655440000';
+    const base = { answerSource: 'kb', sourceConfidence: 'high' };
+    expect(AskDoneEventSchema.parse({ ...base, conversationId: id }).conversationId).toBe(id);
+    expect(AskDoneEventSchema.parse(base).conversationId).toBeUndefined();
+    expect(AskDoneEventSchema.safeParse({ ...base, conversationId: 'nope' }).success).toBe(false);
+  });
+});
+
+describe('conversation schemas', () => {
+  const id = '550e8400-e29b-41d4-a716-446655440000';
+  const turn = {
+    id,
+    question: 'How do I set up the VPN?',
+    answer: 'Install the client.',
+    answerSource: 'kb',
+    sourceConfidence: 'high',
+    sources: [
+      {
+        n: 1,
+        kind: 'kb',
+        documentId: 'doc-1',
+        filename: 'vpn.md',
+      },
+    ],
+    createdAt: '2026-01-15T12:00:00.000Z',
+  };
+
+  it('parses a summary, a list and a detail with turns', () => {
+    const summary = { id, title: 'VPN setup', updatedAt: '2026-01-15T12:00:00.000Z' };
+    expect(ConversationSummarySchema.parse(summary)).toEqual(summary);
+    expect(ConversationListResponseSchema.parse({
+      conversations: [summary],
+    }).conversations).toHaveLength(1);
+    expect(ConversationDetailSchema.parse({
+      ...summary,
+      turns: [turn],
+    }).turns[0]?.sources[0]?.n).toBe(1);
+  });
+
+  it('limits the list and the turns', () => {
+    const summary = { id, title: 'VPN setup', updatedAt: '2026-01-15T12:00:00.000Z' };
+    expect(ConversationListResponseSchema.safeParse({
+      conversations: Array.from({ length: CONVERSATION_LIST_MAX + 1 }).fill(summary),
+    }).success).toBe(false);
+    expect(ConversationDetailSchema.safeParse({
+      ...summary,
+      turns: Array.from({ length: CONVERSATION_MAX_TURNS + 1 }).fill(turn),
+    }).success).toBe(false);
+  });
+
+  it('trims a rename title and rejects empty or over-long ones', () => {
+    expect(RenameConversationRequestSchema.parse({ title: '  VPN  ' }).title).toBe('VPN');
+    expect(RenameConversationRequestSchema.safeParse({ title: '   ' }).success).toBe(false);
+    expect(RenameConversationRequestSchema.safeParse({
+      title: 'a'.repeat(60),
+    }).success).toBe(true);
+    expect(RenameConversationRequestSchema.safeParse({
+      title: 'a'.repeat(61),
+    }).success).toBe(false);
+  });
+
+  it('names the title field when a rename is invalid', () => {
+    const result = RenameConversationRequestSchema.safeParse({ title: ' ' });
+    expect(result.success
+      ? []
+      : result.error.issues.map(i => i.path[0])).toContain('title');
   });
 });
 

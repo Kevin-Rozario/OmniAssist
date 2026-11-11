@@ -83,4 +83,17 @@ describe('ask stream parser', () => {
     expect(() => createAskStreamParser().push('event: nope\ndata: {}\n\n')).toThrow('Unknown ask stream event');
     expect(() => createAskStreamParser().push('event: done\ndata: {"answerSource":"x"}\n\n')).toThrow('Invalid payload');
   });
+
+  it('accepts a done event with or without a conversation id', () => {
+    const id = '550e8400-e29b-41d4-a716-446655440000';
+    const withId = createAskStreamParser().push(
+      `event: done\ndata: {"answerSource":"kb","sourceConfidence":"high","conversationId":"${id}"}\n\n`,
+    );
+    expect(withId[0]).toEqual({
+      event: 'done',
+      data: { answerSource: 'kb', sourceConfidence: 'high', conversationId: id },
+    });
+    const without = createAskStreamParser().push('event: done\ndata: {"answerSource":"kb","sourceConfidence":"high"}\n\n');
+    expect(without[0]?.event).toBe('done');
+  });
 });

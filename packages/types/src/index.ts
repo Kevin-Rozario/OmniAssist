@@ -1,5 +1,6 @@
 export * from './ask';
 export * from './ask-stream';
+export * from './conversation';
 export * from './document';
 export * from './me';
 export * from './problem-details';
