@@ -3,6 +3,7 @@ import { expect, it } from 'vitest';
 import { ApiError, AskStreamError } from './api-client';
 import {
   answerOrigin,
+  displayAnswer,
   ERROR_MESSAGES,
   errorMessage,
   FALLBACK_NOTICE,
@@ -10,6 +11,7 @@ import {
   isAbort,
   needsNewChat,
   stageLabel,
+  stripMarkdown,
   tightenListSpacing,
   toChatError,
 } from './chat-copy';
@@ -119,4 +121,16 @@ it('tightens the gaps between list items but keeps paragraph breaks', () => {
   expect(tightenListSpacing('Steps:\n\n1. Open VPN\n\n2. Sign in\n\n- extra\n\nDone.'))
     .toBe('Steps:\n1. Open VPN\n2. Sign in\n- extra\n\nDone.');
   expect(tightenListSpacing('One.\n\nTwo.')).toBe('One.\n\nTwo.');
+});
+
+it('strips Markdown markers from answers but keeps the words', () => {
+  expect(stripMarkdown('Use **Okta Verify** and _then_ run `vpn up`.')).toBe('Use Okta Verify and then run vpn up.');
+  expect(stripMarkdown('## Steps\n* *Install* the client\n* open_vpn stays')).toBe('Steps\n- Install the client\n- open_vpn stays');
+  expect(stripMarkdown('```sh\nvpn up\n```')).toBe('\nvpn up\n');
+  expect(stripMarkdown('half **bold')).toBe('half bold');
+  expect(stripMarkdown('See [1] and 2*3*4')).toBe('See [1] and 2*3*4');
+});
+
+it('shows answers as plain text with tight lists', () => {
+  expect(displayAnswer('**Steps:**\n\n1. Open it\n\n2. Sign in')).toBe('Steps:\n1. Open it\n2. Sign in');
 });

@@ -7,7 +7,7 @@ import { Loader } from '@omni/ui/components/loader';
 import { ExternalLinkIcon, RotateCcwIcon, SquarePenIcon, TriangleAlertIcon } from 'lucide-react';
 import { memo } from 'react';
 import { BrandMark } from '@/components/brand';
-import { answerOrigin, errorMessage, needsNewChat, safeHttpUrl, stageLabel, tightenListSpacing } from '@/lib/chat-copy';
+import { answerOrigin, displayAnswer, errorMessage, needsNewChat, safeHttpUrl, stageLabel } from '@/lib/chat-copy';
 
 interface ChatMessageProps {
   message: ChatMessageData;
@@ -114,7 +114,7 @@ function ChatMessageView({ message, canRetry, onRetry, onNewChat }: ChatMessageP
           {isStreaming || message.text !== ''
             ? (
                 <div aria-live="polite" className="leading-relaxed break-words whitespace-pre-wrap">
-                  {tightenListSpacing(message.text)}
+                  {displayAnswer(message.text)}
                 </div>
               )
             : null}

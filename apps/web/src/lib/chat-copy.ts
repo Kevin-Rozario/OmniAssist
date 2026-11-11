@@ -136,3 +136,24 @@ export function answerOrigin(source: AnswerSource, confidence: SourceConfidence)
 export function tightenListSpacing(text: string): string {
   return text.replace(/\n[ \t]*\n+(?=[ \t]*(?:[-*•]|\d+[.)])[ \t]+\S)/g, '\n');
 }
+
+/**
+ * Answers are shown as plain text, so Markdown the model slips in would appear as stray symbols.
+ * This removes the markers and keeps the words, headings and list items readable.
+ */
+export function stripMarkdown(text: string): string {
+  return text
+    .replace(/^[ \t]*(```|~~~)[^\n]*$/gm, '')
+    .replace(/`([^`\n]*)`/g, '$1')
+    .replace(/(\*\*|__)/g, '')
+    .replace(/(?<![*\w])\*(?![\s*])([^*\n]+)(?<![\s*])\*\B/g, '$1')
+    .replace(/\b_(?![\s_])([^_\n]+)(?<![\s_])_\b/g, '$1')
+    .replace(/^[ \t]*#{1,6}[ \t]+/gm, '')
+    .replace(/^([ \t]*)[*•][ \t]+/gm, '$1- ')
+    .replace(/`/g, '');
+}
+
+/** What the chat screen shows for an answer: plain text with tight list spacing. */
+export function displayAnswer(text: string): string {
+  return tightenListSpacing(stripMarkdown(text));
+}
