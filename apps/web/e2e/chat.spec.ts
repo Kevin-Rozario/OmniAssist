@@ -300,7 +300,7 @@ async function stubConversations(page: Page, initial: Array<{ id: string; title:
       await route.fallback();
       return;
     }
-    const id = new URL(request.url()).pathname.split('/')[3];
+    const id = new URL(request.url()).pathname.split('/')[4];
     calls.push(`${method} ${id ?? 'list'}`);
 
     if (!id) {

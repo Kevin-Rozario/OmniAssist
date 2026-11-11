@@ -104,10 +104,10 @@ function ChatMessageView({ message, canRetry, onRetry, onNewChat }: ChatMessageP
         <div className="min-w-0 flex-1 text-sm">
           {waiting
             ? (
-                <p role="status" className="flex items-center gap-2 text-muted-foreground">
+                <div role="status" className="flex items-center gap-2 text-muted-foreground">
                   <span aria-hidden="true"><Loader size={16} /></span>
                   {stageLabel(message.stage ?? 'routing')}
-                </p>
+                </div>
               )
             : null}
 
