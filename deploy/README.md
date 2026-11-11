@@ -123,6 +123,20 @@ IMAGE_TAG=<previous-commit-sha> docker compose up -d
 
 The API container is limited to 512 MB. Raise `mem_limit` in `compose.yml` if the kernel OOM-kills it. Certificates stay with the host Caddy, not in a Compose volume.
 
+## Ask pipeline
+
+`POST /v1/ask` needs three outside services. All four required variables must be in `api.env` or the API exits at startup naming the missing one (values are never printed). Recreate the container after editing them.
+
+| Variable              | Required | Default      | Purpose                                                                 |
+| --------------------- | -------- | ------------ | ----------------------------------------------------------------------- |
+| `OPENAI_API_KEY`      | yes      |              | OpenAI key used to stream the answer                                    |
+| `OPENAI_ANSWER_MODEL` | yes      |              | Answer model id (no default, so a stale id never ships silently)        |
+| `TYPESAFE_API_KEY`    | yes      |              | Typesafe key for the Jev router and graders                             |
+| `TAVILY_API_KEY`      | yes      |              | Tavily key for web search when the KB cannot answer                     |
+| `TYPESAFE_MODEL`      | no       | `jev-1.14.0` | Jev model id. Keep it versioned: grading thresholds are tuned against it |
+| `KB_RETRIEVAL_TOP_K`  | no       | `8`          | Chunks retrieved per question (1 to 20). Each one costs a grading call  |
+| `ASK_TIMEOUT_MS`      | no       | `60000`      | Whole-request deadline before the stream ends with a timeout error      |
+
 ## Knowledge base and Inngest
 
 Document upload and ingestion need services that are not covered by `/ready` (that probe stays Postgres-only). Provision them before admins use the Knowledge Base page:

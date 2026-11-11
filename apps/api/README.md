@@ -28,6 +28,12 @@ Fill `apps/api/.env`:
 | `INNGEST_SIGNING_KEY` / `INNGEST_EVENT_KEY` | Inngest Cloud keys; serve URL is `/api/inngest` |
 | `INNGEST_DEV` | Optional. Set to `1` locally to use the Inngest dev server (`npx inngest-cli@latest dev -u http://127.0.0.1:3000/api/inngest`) |
 | `KB_MAX_UPLOAD_BYTES` | Max upload size (default `10485760`) |
+| `OPENAI_API_KEY` / `OPENAI_ANSWER_MODEL` | Required. OpenAI key and the model that streams answers (no default model) |
+| `TYPESAFE_API_KEY` | Required. Typesafe key for the Jev router and graders |
+| `TAVILY_API_KEY` | Required. Tavily key for web search |
+| `TYPESAFE_MODEL` | Jev model id (default `jev-1.14.0`) |
+| `KB_RETRIEVAL_TOP_K` | Chunks retrieved per question, 1 to 20 (default `8`) |
+| `ASK_TIMEOUT_MS` | Whole-request ask deadline (default `60000`) |
 
 In the Clerk dashboard, set the session token claim `metadata` to `{{user.public_metadata}}`. Give one development user `public_metadata.role` of `admin`. Everyone else is treated as `member`.
 

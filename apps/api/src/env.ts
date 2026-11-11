@@ -9,6 +9,12 @@ const originList = z
   .transform(origins => origins.map(origin => new URL(origin).origin));
 
 export const DEFAULT_KB_MAX_UPLOAD_BYTES = 10_485_760;
+/** Versioned on purpose: grading thresholds are tuned against one model, never an alias like `jev-latest`. */
+export const DEFAULT_TYPESAFE_MODEL = 'jev-1.14.0';
+export const DEFAULT_KB_RETRIEVAL_TOP_K = 8;
+/** Each retrieved chunk costs one grading call, so the cap keeps one question's spend bounded. */
+export const MAX_KB_RETRIEVAL_TOP_K = 20;
+export const DEFAULT_ASK_TIMEOUT_MS = 60_000;
 
 export const env = createEnv({
   server: {
@@ -45,6 +51,24 @@ export const env = createEnv({
       .int()
       .positive()
       .default(DEFAULT_KB_MAX_UPLOAD_BYTES),
+
+    OPENAI_API_KEY: z.string().min(1),
+    /** No default: a stale model id must not ship silently. */
+    OPENAI_ANSWER_MODEL: z.string().min(1),
+    TYPESAFE_API_KEY: z.string().min(1),
+    TAVILY_API_KEY: z.string().min(1),
+    TYPESAFE_MODEL: z.string().min(1).default(DEFAULT_TYPESAFE_MODEL),
+    KB_RETRIEVAL_TOP_K: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(MAX_KB_RETRIEVAL_TOP_K)
+      .default(DEFAULT_KB_RETRIEVAL_TOP_K),
+    ASK_TIMEOUT_MS: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(DEFAULT_ASK_TIMEOUT_MS),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,

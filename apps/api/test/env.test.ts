@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import process from 'node:process';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const apiRoot = path.resolve(import.meta.dirname, '..');
 
@@ -13,6 +13,9 @@ const SECRET_VALUES = {
   pineconeKey: 'pinecone_api_key_value',
   inngestSigning: 'signkey-inngest_secret_value',
   inngestEvent: 'inngest_event_key_value',
+  openaiKey: 'sk-openai_api_key_value',
+  typesafeKey: 'typesafe_api_key_value',
+  tavilyKey: 'tvly-tavily_api_key_value',
 };
 
 const validEnv: Record<string, string> = {
@@ -31,6 +34,10 @@ const validEnv: Record<string, string> = {
   PINECONE_INDEX: 'omniassist-kb',
   INNGEST_SIGNING_KEY: SECRET_VALUES.inngestSigning,
   INNGEST_EVENT_KEY: SECRET_VALUES.inngestEvent,
+  OPENAI_API_KEY: SECRET_VALUES.openaiKey,
+  OPENAI_ANSWER_MODEL: 'answer-model-test',
+  TYPESAFE_API_KEY: SECRET_VALUES.typesafeKey,
+  TAVILY_API_KEY: SECRET_VALUES.tavilyKey,
 };
 
 function startApi(env: Record<string, string | undefined>) {
@@ -87,5 +94,91 @@ describe('fail-fast configuration', { timeout: 20_000 }, () => {
     expect(status).not.toBe(0);
     expect(stderr).toContain('PINECONE_API_KEY');
     expectNoSecrets(output);
+  });
+
+  it.each([
+    'OPENAI_API_KEY',
+    'OPENAI_ANSWER_MODEL',
+    'TYPESAFE_API_KEY',
+    'TAVILY_API_KEY',
+  ])('refuses to start without %s, naming it and printing no secret', (name) => {
+    const { status, stderr, output } = startApi({ ...validEnv, [name]: undefined });
+
+    expect(status).not.toBe(0);
+    expect(stderr).toContain(name);
+    expectNoSecrets(output);
+  });
+
+  it('treats an empty OPENAI_ANSWER_MODEL as missing', () => {
+    const { status, stderr } = startApi({ ...validEnv, OPENAI_ANSWER_MODEL: '' });
+
+    expect(status).not.toBe(0);
+    expect(stderr).toContain('OPENAI_ANSWER_MODEL');
+  });
+
+  it.each([
+    ['KB_RETRIEVAL_TOP_K', '0'],
+    ['KB_RETRIEVAL_TOP_K', '21'],
+    ['KB_RETRIEVAL_TOP_K', 'many'],
+    ['ASK_TIMEOUT_MS', '0'],
+    ['ASK_TIMEOUT_MS', 'soon'],
+  ])('refuses to start when %s is %s', (name, value) => {
+    const { status, stderr, output } = startApi({ ...validEnv, [name]: value });
+
+    expect(status).not.toBe(0);
+    expect(stderr).toContain(name);
+    expectNoSecrets(output);
+  });
+});
+
+describe('ask configuration defaults', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  async function loadEnv(overrides: Record<string, string> = {}) {
+    vi.resetModules();
+    for (const [name, value] of Object.entries({
+      ...validEnv,
+      PORT: '3000',
+      ...overrides,
+    }))
+      vi.stubEnv(name, value);
+    return (await import('../src/env')).env;
+  }
+
+  it('applies the documented defaults for the optional variables', async () => {
+    const env = await loadEnv();
+
+    expect(env.TYPESAFE_MODEL).toBe('jev-1.14.0');
+    expect(env.KB_RETRIEVAL_TOP_K).toBe(8);
+    expect(env.ASK_TIMEOUT_MS).toBe(60_000);
+  });
+
+  it('uses the model id with no default for answers', async () => {
+    const env = await loadEnv({ OPENAI_ANSWER_MODEL: 'answer-model-xyz' });
+
+    expect(env.OPENAI_ANSWER_MODEL).toBe('answer-model-xyz');
+  });
+
+  it('lets the optional variables be overridden and coerces numbers', async () => {
+    const env = await loadEnv({
+      TYPESAFE_MODEL: 'jev-9.9.9',
+      KB_RETRIEVAL_TOP_K: '5',
+      ASK_TIMEOUT_MS: '15000',
+    });
+
+    expect(env.TYPESAFE_MODEL).toBe('jev-9.9.9');
+    expect(env.KB_RETRIEVAL_TOP_K).toBe(5);
+    expect(env.ASK_TIMEOUT_MS).toBe(15_000);
+  });
+
+  it('treats empty optional values as unset', async () => {
+    const env = await loadEnv({ TYPESAFE_MODEL: '', KB_RETRIEVAL_TOP_K: '', ASK_TIMEOUT_MS: '' });
+
+    expect(env.TYPESAFE_MODEL).toBe('jev-1.14.0');
+    expect(env.KB_RETRIEVAL_TOP_K).toBe(8);
+    expect(env.ASK_TIMEOUT_MS).toBe(60_000);
   });
 });
