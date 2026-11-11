@@ -1,5 +1,5 @@
 {
-  "name": "omni-it-copilot",
+  "name": "omniassist",
   "type": "module",
   "private": true,
   "packageManager": "pnpm@10.34.9",
